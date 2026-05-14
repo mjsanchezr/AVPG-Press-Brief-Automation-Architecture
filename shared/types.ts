@@ -1,6 +1,7 @@
 export interface SmtpCredentials {
   senderEmail: string;
   appPassword: string;
+  geminiApiKey?: string;
 }
 
 export interface DistributionConfig {

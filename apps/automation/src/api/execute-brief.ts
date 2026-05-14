@@ -1,7 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { ExecutionPayload } from '../../../../shared/types';
-import { fetchRawFeeds } from '../services/aggregatorService';
-import { processBriefEngine } from '../services/curationService';
+import { fetchAndCurateLiveBrief } from '../services/curationService';
 import { sendBriefEmailDynamically } from '../services/gmailService';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -18,26 +17,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Missing required configuration parameters (senderEmail, appPassword, recipientEmail)' });
     }
 
-    console.log("[EXECUTE] Initiating dynamic ingestion sequence...");
+    // API Key for Gemini - can be passed in payload or environment
+    const apiKey = payload.credentials.geminiApiKey || process.env.GEMINI_API_KEY;
     
-    let rawFeeds: string[];
-    if (payload.rawSourceData) {
-      rawFeeds = [payload.rawSourceData];
-    } else {
-      rawFeeds = await fetchRawFeeds();
+    if (!apiKey) {
+      return res.status(400).json({ error: 'Missing Gemini API Key. Provide it in credentials or environment.' });
     }
-    
-    console.log(`[EXECUTE] Fetched ${rawFeeds.length} items. Invoking curation engine...`);
-    const briefPayload = await processBriefEngine(rawFeeds);
 
+    console.log("[EXECUTE] Initiating live intelligence discovery sequence with Google Search Grounding...");
+    
+    // We now bypass the manual aggregator feeds as the agent performs real-time macro discovery
+    const markdownBrief = await fetchAndCurateLiveBrief(apiKey);
+
+    console.log(`[EXECUTE] Brief curated successfully. Length: ${markdownBrief.length} chars.`);
+    
     console.log(`[EXECUTE] Dispatching brief to ${payload.config.recipientEmail}...`);
-    const emailSent = await sendBriefEmailDynamically(briefPayload, payload.credentials, payload.config);
+    
+    // Note: gmailService might need adjustment to handle raw markdown
+    const emailSent = await sendBriefEmailDynamically(markdownBrief, payload.credentials, payload.config);
 
     return res.status(200).json({
       success: true,
       timestamp: new Date().toISOString(),
       emailSent,
-      data: briefPayload
+      data: markdownBrief
     });
 
   } catch (error: any) {

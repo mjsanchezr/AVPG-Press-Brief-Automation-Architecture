@@ -1,65 +1,88 @@
-import { BriefPayload } from '../../../../shared/types';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Initialize Gemini LLM Engine
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'mock-key-for-typing');
+/**
+ * PRODUCTION-GRADE INTELLIGENCE AGENT
+ * This service leverages Gemini 1.5 Pro with Google Search Grounding to perform
+ * real-time macro discovery and curation for the AVPG press brief.
+ */
 
-export async function processBriefEngine(rawFeeds: string[]): Promise<BriefPayload> {
+export async function fetchAndCurateLiveBrief(apiKey: string): Promise<string> {
+  const genAI = new GoogleGenerativeAI(apiKey);
+
   const systemInstruction = `
-Role: Business Intelligence Analyst specialized in Venezuelan macroeconomics and energy sectors.
-Format: Executive 1-page summary layout.
-Hierarchy: 
-1. Oil & Gas (Critical priority: Shell offshore gas/Trinidad, George E. Warren LLC market incursions, ENI 'debt-for-oil' swaps via Cardón IV, Chevron cycles)
-2. Economía e Inversión (OFAC GL 58, Citgo asset milestones, Calixto Ortega IMF designation, April inflation 10.6%, exchange benchmark 500.46 Bs/USD)
-3. Contexto Internacional
-4. Para Tener en Cuenta (analytical data blocks, early warnings, pattern detection)
+Role Persona: You are an elite Business Intelligence Analyst specialized in the Venezuelan macroeconomic ecosystem and energy sectors. Your output is a hyper-dense, executive 1-page summary.
 
-Rules: 
-- Return ONLY valid JSON matching the BriefPayload schema.
-- Every headline must be a click-through active Markdown link format [Title](URL).
-- Identify corporate trends as "📈 Patrón detectado: ...".
-- Strip away all institutional attribution or client consulting references.
-- Tone must remain professional, direct, and hyper-dense.
+Ingestion Search Scope: Execute an optimized search sweep across critical macroeconomic clusters targeting active markers: "Venezuela Oil & Gas", "Chevron operations Venezuela", "Eni Repsol Cardón IV debt swaps", "Shell gas monetization Trinidad Atlantic LNG", "OFAC General License 58 and debt restructuring", "Calixto Ortega IMF designation", and "BCV exchange rate updates".
+
+Curation Logic: Filter out all operational noise, formatting garbage, PR fluff, and duplicate entries. Prioritize cold facts, structural changes, and strict business implications. Every single headline must retain a verifiable, fully qualified, click-through active source hyperlinked URL discovered during the live search grounding pass.
+
+PLAYBOOK LAYOUT FORMAT ENFORCEMENT:
+Force the AI model to output its response using the precise structural formatting rules of the AVPG press brief:
+
+Title Block: 🛢️ VENEZUELA BRIEF — [Current Live Date]
+
+TITULAR DEL DÍA: High-impact, multi-variable editorial summary of the day's structural alignment. Maximum 2 to 3 lines.
+
+OIL & GAS: Critical, absolute priority cluster at the top. Format each entry as:
+📌 [Titular de la Noticia] — Resumen analítico de 2 a 3 líneas indicando explícitamente la implicación de negocio para el sector privado.
+🔗 Fuente: [Link Activo de la Fuente]
+
+ECONOMÍA & INVERSIÓN: Financial updates, macro figures, regulatory tracking (e.g., inflation benchmarks, official exchange rate indices, grid vulnerabilities). Format identically with 📌 bullets, analytical business implications, and 🔗 source links.
+
+CONTEXTO INTERNACIONAL: Global energy trade corridors, supply chain bottlenecks, cross-border macroeconomic treaties. Format identically with 📌 bullets and 🔗 source links.
+
+🔍 PARA TENER EN CUENTA: Analytical summary block containing 2 to 3 definitive early warning risk signals or structural pattern detections. Synthesize patterns cleanly (e.g., "📈 Patrón detectado: ...") based on current trends. Completely strip out any institutional attribution, internal firm metadata, or client references.
 `;
 
   try {
-    const model = genAI.getGenerativeModel({ 
+    const model = genAI.getGenerativeModel({
       model: "gemini-1.5-pro",
-      systemInstruction 
+      systemInstruction,
+      // @ts-ignore - Google Search Grounding is a recent addition to the SDK
+      tools: [{ googleSearch: {} }]
     });
 
-    // In a live environment:
-    // const prompt = \`Process feeds into JSON:\\n\${JSON.stringify(rawFeeds)}\`;
-    // const response = await model.generateContent(prompt);
-    // return JSON.parse(response.response.text());
+    const currentDate = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
 
-    // Returning a type-safe realistic structure matching the specific May 2026 playbook markers exactly
-    return {
-      titleBlock: "🛢️ VENEZUELA BRIEF — May 14, 2026",
-      titularDelDia: "Macro indicators reflect stabilization in inflation metrics amidst significant corporate restructuring in energy sectors. Strategic GL authorizations and IMF designations set the tone for Q3 financial posture.",
-      oilGas: [
-        { text: "[Shell Offshore Gas Developments Progressing](https://example.com/shell-trinidad)", url: "https://example.com/shell-trinidad" },
-        { text: "[George E. Warren LLC Expands Market Incursions](https://example.com/gew-allocations)", url: "https://example.com/gew-allocations", patternDetected: "📈 Patrón detectado: Increased independent allocator footprint." },
-        { text: "[ENI Secures 'Debt-for-Oil' Swaps via Cardón IV](https://example.com/eni-cardon)", url: "https://example.com/eni-cardon" },
-        { text: "[Chevron Q2 Operational Cycles Outlined](https://example.com/chevron-q2)", url: "https://example.com/chevron-q2" }
-      ],
-      economiaInversion: [
-        { text: "[OFAC GL 58 Debt Restructuring Authorizations Formally Expanded](https://example.com/ofac-gl58)", url: "https://example.com/ofac-gl58" },
-        { text: "[Citgo Governance and Asset Milestones Updated](https://example.com/citgo)", url: "https://example.com/citgo" },
-        { text: "[Calixto Ortega Designated as IMF Governor](https://example.com/imf-ortega)", url: "https://example.com/imf-ortega" },
-        { text: "[April Inflation Metric Recorded at 10.6%](https://example.com/inflation)", url: "https://example.com/inflation", patternDetected: "📈 Patrón detectado: Stabilization trend in CPI." },
-        { text: "[BCV Exchange Benchmarks Hit 500.46 Bs/USD](https://example.com/bcv-exchange)", url: "https://example.com/bcv-exchange" }
-      ],
-      contextoInternacional: [
-        { text: "[Global Crude Flows React to Regional Adjustments](https://example.com/global-flows)", url: "https://example.com/global-flows" }
-      ],
-      paraTenerEnCuenta: [
-        "Port logistical constraints may affect late Q2 loadings.",
-        "Regulatory shifts in compliance protocols regarding maritime transit."
-      ]
-    };
-  } catch (error) {
-    console.error("LLM Engine processing failed:", error);
-    throw error;
+    const prompt = `Generate the live AVPG press brief for today, ${currentDate}. 
+    Use Google Search to find the latest real-time news for May 2026 across the specified sectors. 
+    Ensure all links are active and discovered during the search pass.
+    Follow the Playbook Layout exactly.`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    if (!text) {
+      throw new Error("Empty response from Gemini engine");
+    }
+
+    return text;
+  } catch (error: any) {
+    console.error("AI Curation Service Failure:", error);
+    // Bubble up a clean error message as requested
+    throw new Error(`Intelligence Agent failed to curate brief: ${error.message}`);
   }
+}
+
+/**
+ * Legacy support for the previous engine interface if needed, 
+ * but now redirected to the live grounded agent.
+ */
+export async function processBriefEngine(rawFeeds: string[]): Promise<any> {
+  console.warn("processBriefEngine is deprecated. Use fetchAndCurateLiveBrief for live grounding.");
+  // This is kept to avoid breaking existing callers immediately, 
+  // but it should be phased out as the pipeline shifts to live discovery.
+  return {
+    titleBlock: "DEPRECATED - USE LIVE BRIEF",
+    titularDelDia: "The system has transitioned to live Google Search Grounding.",
+    oilGas: [],
+    economiaInversion: [],
+    contextoInternacional: [],
+    paraTenerEnCuenta: []
+  };
 }
