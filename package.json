@@ -1,5 +1,5 @@
 {
-  "name": "avpg-press-brief-monorepo",
+  "name": "avpg-press-brief-automation",
   "version": "1.0.0",
   "private": true,
   "workspaces": [
@@ -7,12 +7,20 @@
     "shared"
   ],
   "scripts": {
-    "install:all": "npm install",
-    "build": "npm run build --workspaces",
+    "build": "npm run build --workspaces || tsc -b",
     "dev": "npm run dev --workspaces",
     "deploy": "npx vercel --prod"
   },
   "dependencies": {
-    "@google/genai": "^2.2.0"
+    "@google/genai": "^2.2.0",
+    "nodemailer": "^6.9.0",
+    "express": "^4.18.2",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "ts-node": "^10.9.2",
+    "@types/node": "^20.0.0",
+    "@types/nodemailer": "^6.4.14"
   }
 }
