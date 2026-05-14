@@ -7,7 +7,7 @@
     "test-email": "ts-node scripts/test-email.ts"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
+    "@google/genai": "^0.1.0",
     "dotenv": "^16.4.5",
     "nodemailer": "^6.9.0"
   },
