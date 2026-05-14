@@ -6,10 +6,7 @@ import { GoogleGenAI } from '@google/genai';
  * real-time macro discovery and curation for the AVPG press brief.
  */
 
-export async function fetchAndCurateLiveBrief(apiKey: string): Promise<string> {
-  const ai = new GoogleGenAI({ apiKey: apiKey });
-
-  const systemInstruction = `
+export const BRIEF_SYSTEM_INSTRUCTION = `
 Role Persona: You are an elite Business Intelligence Analyst specialized in the Venezuelan macroeconomic ecosystem and energy sectors. Your output is a hyper-dense, executive 1-page summary.
 
 Ingestion Search Scope: Execute an optimized search sweep across critical macroeconomic clusters targeting active markers: "Venezuela Oil & Gas", "Chevron operations Venezuela", "Eni Repsol Cardón IV debt swaps", "Shell gas monetization Trinidad Atlantic LNG", "OFAC General License 58 and debt restructuring", "Calixto Ortega IMF designation", and "BCV exchange rate updates".
@@ -34,42 +31,24 @@ CONTEXTO INTERNACIONAL: Global energy trade corridors, supply chain bottlenecks,
 🔍 PARA TENER EN CUENTA: Analytical summary block containing 2 to 3 definitive early warning risk signals or structural pattern detections. Synthesize patterns cleanly (e.g., "📈 Patrón detectado: ...") based on current trends. Completely strip out any institutional attribution, internal firm metadata, or client references.
 `;
 
+export async function fetchAndCurateLiveBrief(apiKey: string, promptText: string): Promise<string> {
   try {
-    // Model Initialization Block
-    console.log("[AI] Executing generateContent with gemini-2.5-flash and search grounding...");
-    
-    const currentDate = new Date().toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    // Instantiated inside the execution scope to ensure cold start safety
+    const ai = new GoogleGenAI({ apiKey: apiKey });
 
-    const promptText = `Generate the live AVPG press brief for today, ${currentDate}. 
-    Use Google Search to find the latest real-time news for May 2026 across the specified sectors. 
-    Ensure all links are active and discovered during the search pass.
-    Follow the Playbook Layout exactly.`;
-
-    // Content Generation with Native Search Grounding
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash', // Fully supported production model for real-time loops
+      model: 'gemini-2.5-flash',
       contents: promptText,
       config: {
-        systemInstruction: systemInstruction,
-        tools: [{ googleSearch: {} }] // Native Search Grounding without any type casting hacks
+        // Declared explicitly matching the new configuration types contract
+        tools: [{ googleSearch: {} }]
       }
     });
 
-    const text = response.text || '';
-
-    if (!text) {
-      throw new Error("Empty response from Gemini engine");
-    }
-
-    return text;
+    return response.text || '';
   } catch (error: any) {
-    console.error("AI Curation Service Failure:", error);
-    // Bubble up a clean error message as requested
-    throw new Error(`Intelligence Agent failed to curate brief: ${error.message}`);
+    console.error("Curation Service failure path:", error);
+    throw error;
   }
 }
 

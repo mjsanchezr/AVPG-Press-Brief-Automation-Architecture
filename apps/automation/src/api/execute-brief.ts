@@ -1,6 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { ExecutionPayload } from '../../../../shared/types';
-import { fetchAndCurateLiveBrief } from '../services/curationService';
+import { fetchAndCurateLiveBrief, BRIEF_SYSTEM_INSTRUCTION } from '../services/curationService';
 import { sendBriefEmailDynamically } from '../services/gmailService';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -26,8 +26,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     console.log("[EXECUTE] Initiating live intelligence discovery sequence with Google Search Grounding...");
     
-    // We now bypass the manual aggregator feeds as the agent performs real-time macro discovery
-    const markdownBrief = await fetchAndCurateLiveBrief(apiKey);
+    const currentDate = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    const promptText = `
+${BRIEF_SYSTEM_INSTRUCTION}
+
+Generate the live AVPG press brief for today, ${currentDate}. 
+Use Google Search to find the latest real-time news for May 2026 across the specified sectors. 
+Ensure all links are active and discovered during the search pass.
+Follow the Playbook Layout exactly.`;
+
+    const markdownBrief = await fetchAndCurateLiveBrief(apiKey, promptText);
 
     console.log(`[EXECUTE] Brief curated successfully. Length: ${markdownBrief.length} chars.`);
     
