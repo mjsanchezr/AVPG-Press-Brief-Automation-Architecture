@@ -1,13 +1,13 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 
 /**
  * PRODUCTION-GRADE INTELLIGENCE AGENT
- * This service leverages Gemini 1.5 Pro with Google Search Grounding to perform
+ * This service leverages Gemini 2.5 Flash with Google Search Grounding to perform
  * real-time macro discovery and curation for the AVPG press brief.
  */
 
 export async function fetchAndCurateLiveBrief(apiKey: string): Promise<string> {
-  const genAI = new GoogleGenerativeAI(apiKey);
+  const ai = new GoogleGenAI({ apiKey: apiKey });
 
   const systemInstruction = `
 Role Persona: You are an elite Business Intelligence Analyst specialized in the Venezuelan macroeconomic ecosystem and energy sectors. Your output is a hyper-dense, executive 1-page summary.
@@ -36,12 +36,8 @@ CONTEXTO INTERNACIONAL: Global energy trade corridors, supply chain bottlenecks,
 
   try {
     // Model Initialization Block
-    console.log("[AI] Initializing model: gemini-1.5-flash with search grounding...");
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash", // Using Flash to resolve 404 Not Found in certain v1beta regions
-      systemInstruction,
-    });
-
+    console.log("[AI] Executing generateContent with gemini-2.5-flash and search grounding...");
+    
     const currentDate = new Date().toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -53,19 +49,17 @@ CONTEXTO INTERNACIONAL: Global energy trade corridors, supply chain bottlenecks,
     Ensure all links are active and discovered during the search pass.
     Follow the Playbook Layout exactly.`;
 
-    // Content Generation with Search Grounding
-    const result = await model.generateContent({
-      contents: [
-        { role: 'user', parts: [{ text: promptText }] }
-      ],
-      // Use 'any' cast because the SDK's Tool type definition often lags behind the API's Search Grounding support
-      tools: [
-        { googleSearch: {} } as any
-      ]
-    } as any);
+    // Content Generation with Native Search Grounding
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash', // Fully supported production model for real-time loops
+      contents: promptText,
+      config: {
+        systemInstruction: systemInstruction,
+        tools: [{ googleSearch: {} }] // Native Search Grounding without any type casting hacks
+      }
+    });
 
-    const response = await result.response;
-    const text = response.text();
+    const text = response.text || '';
 
     if (!text) {
       throw new Error("Empty response from Gemini engine");
@@ -94,3 +88,4 @@ export async function processBriefEngine(rawFeeds: string[]): Promise<any> {
     paraTenerEnCuenta: []
   };
 }
+
