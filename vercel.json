@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "crons": [
+    {
+      "path": "/api/cron-trigger",
+      "schedule": "0 7 * * 1,4"
+    }
+  ],
+  "builds": [
+    {
+      "src": "apps/automation/src/api/cron-trigger.ts",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "apps/dashboard/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ]
+}

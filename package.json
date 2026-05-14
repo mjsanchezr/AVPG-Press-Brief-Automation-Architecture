@@ -1,0 +1,14 @@
+{
+  "name": "avpg-press-brief-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "shared"
+  ],
+  "scripts": {
+    "install:all": "npm install",
+    "build": "npm run build --workspaces",
+    "dev": "npm run dev --workspaces"
+  }
+}
