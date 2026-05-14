@@ -36,9 +36,9 @@ CONTEXTO INTERNACIONAL: Global energy trade corridors, supply chain bottlenecks,
 
   try {
     // Model Initialization Block
+    console.log("[AI] Initializing model: gemini-1.5-flash with search grounding...");
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-pro", // CRITICAL: Explicit official identifier to avoid 404
-      // Fallback: Use "gemini-1.5-flash" if token limits or serverless timeouts occur
+      model: "gemini-1.5-flash", // Using Flash to resolve 404 Not Found in certain v1beta regions
       systemInstruction,
     });
 
@@ -58,11 +58,11 @@ CONTEXTO INTERNACIONAL: Global energy trade corridors, supply chain bottlenecks,
       contents: [
         { role: 'user', parts: [{ text: promptText }] }
       ],
-      // @ts-ignore - Google Search Grounding tool configuration
+      // Use 'any' cast because the SDK's Tool type definition often lags behind the API's Search Grounding support
       tools: [
-        { googleSearch: {} } // Keeps real-time web discovery active for May 2026 data
+        { googleSearch: {} } as any
       ]
-    });
+    } as any);
 
     const response = await result.response;
     const text = response.text();
