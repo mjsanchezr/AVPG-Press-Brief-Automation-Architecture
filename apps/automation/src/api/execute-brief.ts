@@ -44,10 +44,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
   } catch (error: any) {
-    console.error("[EXECUTE] Pipeline failure:", error);
+    console.error("Serverless Pipeline Crash:", error);
     return res.status(500).json({
       success: false,
-      error: error.message || 'Internal pipeline error'
+      error: error.message || "An internal server error occurred within the automation workspace.",
+      stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined
     });
   }
 }

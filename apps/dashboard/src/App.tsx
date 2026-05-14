@@ -55,7 +55,7 @@ export default function App() {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
 
-  const handleTrigger = async () => {
+  const handleExecutePipeline = async () => {
     if (!senderEmail || !appPassword || !recipientEmail || !geminiApiKey) {
       showToast('Missing required configuration fields.', 'error');
       return;
@@ -88,9 +88,22 @@ export default function App() {
         body: JSON.stringify(payload)
       });
 
-      const result = await response.json();
+      if (!response.ok) {
+        // Safely extract the plain text error if the server didn't emit valid JSON
+        const errorText = await response.text();
+        let parsedError = errorText;
+        try {
+          const jsonErr = JSON.parse(errorText);
+          parsedError = jsonErr.error || errorText;
+        } catch {
+          // Response was not JSON format
+        }
+        throw new Error(parsedError);
+      }
 
-      if (response.ok && result.success) {
+      const result = await response.json();
+      
+      if (result.success) {
         setData(result.data);
         showToast('Intelligence Loop Executed Successfully.', 'success');
       } else {
@@ -200,7 +213,7 @@ export default function App() {
 
             <div className="mt-4">
               <button 
-                onClick={handleTrigger}
+                onClick={handleExecutePipeline}
                 disabled={isRunning}
                 className="w-full flex justify-center items-center gap-2 rounded-sm bg-cyan-900/40 hover:bg-cyan-800/60 border border-cyan-700/50 disabled:bg-[#111] disabled:border-[#222] disabled:text-gray-600 px-4 py-3 text-xs font-bold tracking-wider uppercase transition-all shadow-[0_0_15px_rgba(8,145,178,0.15)] hover:shadow-[0_0_25px_rgba(8,145,178,0.3)] text-cyan-100"
               >
