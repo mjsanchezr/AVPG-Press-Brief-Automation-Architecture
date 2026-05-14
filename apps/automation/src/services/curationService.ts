@@ -35,11 +35,11 @@ CONTEXTO INTERNACIONAL: Global energy trade corridors, supply chain bottlenecks,
 `;
 
   try {
+    // Model Initialization Block
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-pro",
+      model: "gemini-1.5-pro", // CRITICAL: Explicit official identifier to avoid 404
+      // Fallback: Use "gemini-1.5-flash" if token limits or serverless timeouts occur
       systemInstruction,
-      // @ts-ignore - Google Search Grounding is a recent addition to the SDK
-      tools: [{ googleSearch: {} }]
     });
 
     const currentDate = new Date().toLocaleDateString('en-US', {
@@ -48,12 +48,22 @@ CONTEXTO INTERNACIONAL: Global energy trade corridors, supply chain bottlenecks,
       day: 'numeric'
     });
 
-    const prompt = `Generate the live AVPG press brief for today, ${currentDate}. 
+    const promptText = `Generate the live AVPG press brief for today, ${currentDate}. 
     Use Google Search to find the latest real-time news for May 2026 across the specified sectors. 
     Ensure all links are active and discovered during the search pass.
     Follow the Playbook Layout exactly.`;
 
-    const result = await model.generateContent(prompt);
+    // Content Generation with Search Grounding
+    const result = await model.generateContent({
+      contents: [
+        { role: 'user', parts: [{ text: promptText }] }
+      ],
+      // @ts-ignore - Google Search Grounding tool configuration
+      tools: [
+        { googleSearch: {} } // Keeps real-time web discovery active for May 2026 data
+      ]
+    });
+
     const response = await result.response;
     const text = response.text();
 
@@ -75,8 +85,6 @@ CONTEXTO INTERNACIONAL: Global energy trade corridors, supply chain bottlenecks,
  */
 export async function processBriefEngine(rawFeeds: string[]): Promise<any> {
   console.warn("processBriefEngine is deprecated. Use fetchAndCurateLiveBrief for live grounding.");
-  // This is kept to avoid breaking existing callers immediately, 
-  // but it should be phased out as the pipeline shifts to live discovery.
   return {
     titleBlock: "DEPRECATED - USE LIVE BRIEF",
     titularDelDia: "The system has transitioned to live Google Search Grounding.",
