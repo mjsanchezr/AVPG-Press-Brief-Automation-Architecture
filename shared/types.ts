@@ -1,3 +1,19 @@
+export interface GoogleApiCredentials {
+  clientId: string;
+  clientSecret: string;
+  refreshToken: string;
+}
+
+export interface DistributionConfig {
+  recipientEmail: string;
+}
+
+export interface ExecutionPayload {
+  credentials: GoogleApiCredentials;
+  config: DistributionConfig;
+  rawSourceData?: string;
+}
+
 export interface HyperlinkItem {
   text: string;
   url: string;

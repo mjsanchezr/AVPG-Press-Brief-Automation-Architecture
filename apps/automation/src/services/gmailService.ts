@@ -1,13 +1,18 @@
 import { google } from 'googleapis';
-import { BriefPayload } from '../../../../shared/types';
+import { BriefPayload, GoogleApiCredentials, DistributionConfig } from '../../../../shared/types';
 
-export async function sendBriefEmail(payload: BriefPayload, recipientEmail: string): Promise<boolean> {
+export async function sendBriefEmailDynamically(payload: BriefPayload, auth: GoogleApiCredentials, config: DistributionConfig): Promise<boolean> {
   try {
-    const auth = new google.auth.GoogleAuth({
-      scopes: ['https://www.googleapis.com/auth/gmail.send'],
+    const oauth2Client = new google.auth.OAuth2(
+      auth.clientId,
+      auth.clientSecret
+    );
+
+    oauth2Client.setCredentials({
+      refresh_token: auth.refreshToken
     });
 
-    const gmail = google.gmail({ version: 'v1', auth });
+    const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
     // Format highly clean high-density HTML email layout
     const htmlBody = `
@@ -61,7 +66,7 @@ export async function sendBriefEmail(payload: BriefPayload, recipientEmail: stri
     `;
 
     const messageParts = [
-      `To: ${recipientEmail}`,
+      `To: ${config.recipientEmail}`,
       'Content-Type: text/html; charset=utf-8',
       'MIME-Version: 1.0',
       `Subject: =?utf-8?B?${Buffer.from(payload.titleBlock).toString('base64')}?=`,

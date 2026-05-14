@@ -1,6 +1,7 @@
 import * as dotenv from 'dotenv';
 import { processBriefEngine } from '../src/services/curationService';
-import { sendBriefEmail } from '../src/services/gmailService';
+import { sendBriefEmailDynamically } from '../src/services/gmailService';
+import { GoogleApiCredentials, DistributionConfig } from '../../../shared/types';
 
 dotenv.config();
 
@@ -15,12 +16,22 @@ async function runTest() {
     
     console.log(`📨 Attempting dispatch to ${adminEmail}...`);
     
-    if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-      console.warn("⚠️ GOOGLE_APPLICATION_CREDENTIALS not set. The Gmail API call will likely fail in local mode.");
+    const auth: GoogleApiCredentials = {
+      clientId: process.env.GOOGLE_CLIENT_ID || '',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+      refreshToken: process.env.GOOGLE_REFRESH_TOKEN || ''
+    };
+    
+    const config: DistributionConfig = {
+      recipientEmail: adminEmail
+    };
+
+    if (!auth.clientId || !auth.clientSecret || !auth.refreshToken) {
+      console.warn("⚠️ Google API credentials not fully set in environment variables. The Gmail API call will likely fail in local mode.");
     }
 
     try {
-      await sendBriefEmail(payload, adminEmail);
+      await sendBriefEmailDynamically(payload, auth, config);
       console.log("✅ Success! Payload dispatched.");
     } catch (e: any) {
       console.error("❌ Email dispatch failed:", e.message);

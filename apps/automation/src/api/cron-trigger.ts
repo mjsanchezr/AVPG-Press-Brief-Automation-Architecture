@@ -1,7 +1,8 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { fetchRawFeeds } from '../services/aggregatorService';
 import { processBriefEngine } from '../services/curationService';
-import { sendBriefEmail } from '../services/gmailService';
+import { sendBriefEmailDynamically } from '../services/gmailService';
+import { GoogleApiCredentials, DistributionConfig } from '../../../../shared/types';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
@@ -17,7 +18,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let emailSent = false;
     if (dispatchEnabled) {
       console.log(`[CRON] Dispatching brief to ${targetEmail}...`);
-      emailSent = await sendBriefEmail(briefPayload, targetEmail);
+      
+      const auth: GoogleApiCredentials = {
+        clientId: process.env.GOOGLE_CLIENT_ID || '',
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+        refreshToken: process.env.GOOGLE_REFRESH_TOKEN || ''
+      };
+      
+      const config: DistributionConfig = {
+        recipientEmail: targetEmail
+      };
+      
+      if (auth.clientId && auth.clientSecret && auth.refreshToken) {
+        emailSent = await sendBriefEmailDynamically(briefPayload, auth, config);
+      } else {
+        console.warn("[CRON] Missing Google API credentials in environment variables.");
+      }
     } else {
       console.log("[CRON] Email dispatch operational flag is disabled.");
     }
