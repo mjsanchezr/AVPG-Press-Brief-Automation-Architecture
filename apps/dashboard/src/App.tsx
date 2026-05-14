@@ -22,27 +22,23 @@ export default function App() {
   const [data, setData] = useState<BriefPayload | null>(null);
   
   // Config state
-  const [clientId, setClientId] = useState('');
-  const [clientSecret, setClientSecret] = useState('');
-  const [refreshToken, setRefreshToken] = useState('');
+  const [senderEmail, setSenderEmail] = useState('');
+  const [appPassword, setAppPassword] = useState('');
   const [recipientEmail, setRecipientEmail] = useState('');
   const [rawSourceData, setRawSourceData] = useState(MOCK_RAW_FEEDS);
 
   // UI state
   const [showSecret, setShowSecret] = useState(false);
-  const [showToken, setShowToken] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     // Load from local storage
-    const savedClientId = localStorage.getItem('avpg_clientId');
-    const savedClientSecret = localStorage.getItem('avpg_clientSecret');
-    const savedRefreshToken = localStorage.getItem('avpg_refreshToken');
+    const savedSenderEmail = localStorage.getItem('avpg_senderEmail');
+    const savedAppPassword = localStorage.getItem('avpg_appPassword');
     const savedRecipientEmail = localStorage.getItem('avpg_recipientEmail');
 
-    if (savedClientId) setClientId(savedClientId);
-    if (savedClientSecret) setClientSecret(savedClientSecret);
-    if (savedRefreshToken) setRefreshToken(savedRefreshToken);
+    if (savedSenderEmail) setSenderEmail(savedSenderEmail);
+    if (savedAppPassword) setAppPassword(savedAppPassword);
     if (savedRecipientEmail) setRecipientEmail(savedRecipientEmail);
   }, []);
 
@@ -60,7 +56,7 @@ export default function App() {
   };
 
   const handleTrigger = async () => {
-    if (!clientId || !clientSecret || !refreshToken || !recipientEmail) {
+    if (!senderEmail || !appPassword || !recipientEmail) {
       showToast('Missing required configuration fields.', 'error');
       return;
     }
@@ -75,9 +71,8 @@ export default function App() {
 
     const payload: ExecutionPayload = {
       credentials: {
-        clientId,
-        clientSecret,
-        refreshToken
+        senderEmail,
+        appPassword
       },
       config: {
         recipientEmail
@@ -138,44 +133,31 @@ export default function App() {
               <h3 className="text-[10px] font-bold text-cyan-500 uppercase tracking-widest border-b border-[#1a1a1a] pb-2">Google API Infrastructure</h3>
               
               <div className="space-y-1">
-                <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Client ID</label>
-                <input 
-                  type="text" 
-                  value={clientId}
-                  onChange={(e) => { setClientId(e.target.value); saveConfig('clientId', e.target.value); }}
-                  className="w-full bg-[#141414] border border-[#222] focus:border-cyan-500/50 text-xs px-3 py-2 rounded-sm outline-none transition-colors text-gray-300 placeholder-[#333]"
-                  placeholder="Enter Client ID"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Client Secret</label>
+                <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Sender Gmail Address</label>
                 <div className="relative">
+                  <Mail className="absolute left-3 top-2 h-4 w-4 text-gray-600" />
                   <input 
-                    type={showSecret ? "text" : "password"} 
-                    value={clientSecret}
-                    onChange={(e) => { setClientSecret(e.target.value); saveConfig('clientSecret', e.target.value); }}
-                    className="w-full bg-[#141414] border border-[#222] focus:border-cyan-500/50 text-xs px-3 py-2 pr-9 rounded-sm outline-none transition-colors text-gray-300 placeholder-[#333]"
-                    placeholder="Enter Client Secret"
+                    type="email" 
+                    value={senderEmail}
+                    onChange={(e) => { setSenderEmail(e.target.value); saveConfig('senderEmail', e.target.value); }}
+                    className="w-full bg-[#141414] border border-[#222] focus:border-cyan-500/50 text-xs pl-9 pr-3 py-2 rounded-sm outline-none transition-colors text-gray-300 placeholder-[#333]"
+                    placeholder="automation@gmail.com"
                   />
-                  <button onClick={() => setShowSecret(!showSecret)} className="absolute right-2 top-2 text-gray-500 hover:text-cyan-400">
-                    {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Refresh Token</label>
+                <label className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">16-Character App Password</label>
                 <div className="relative">
                   <input 
-                    type={showToken ? "text" : "password"} 
-                    value={refreshToken}
-                    onChange={(e) => { setRefreshToken(e.target.value); saveConfig('refreshToken', e.target.value); }}
+                    type={showSecret ? "text" : "password"} 
+                    value={appPassword}
+                    onChange={(e) => { setAppPassword(e.target.value); saveConfig('appPassword', e.target.value); }}
                     className="w-full bg-[#141414] border border-[#222] focus:border-cyan-500/50 text-xs px-3 py-2 pr-9 rounded-sm outline-none transition-colors text-gray-300 placeholder-[#333]"
-                    placeholder="Enter Refresh Token"
+                    placeholder="Enter App Password"
                   />
-                  <button onClick={() => setShowToken(!showToken)} className="absolute right-2 top-2 text-gray-500 hover:text-cyan-400">
-                    {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  <button onClick={() => setShowSecret(!showSecret)} className="absolute right-2 top-2 text-gray-500 hover:text-cyan-400">
+                    {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>

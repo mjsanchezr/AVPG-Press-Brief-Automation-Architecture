@@ -1,18 +1,15 @@
-import { google } from 'googleapis';
-import { BriefPayload, GoogleApiCredentials, DistributionConfig } from '../../../../shared/types';
+import nodemailer from 'nodemailer';
+import { BriefPayload, SmtpCredentials, DistributionConfig } from '../../../../shared/types';
 
-export async function sendBriefEmailDynamically(payload: BriefPayload, auth: GoogleApiCredentials, config: DistributionConfig): Promise<boolean> {
+export async function sendBriefEmailDynamically(payload: BriefPayload, auth: SmtpCredentials, config: DistributionConfig): Promise<boolean> {
   try {
-    const oauth2Client = new google.auth.OAuth2(
-      auth.clientId,
-      auth.clientSecret
-    );
-
-    oauth2Client.setCredentials({
-      refresh_token: auth.refreshToken
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: auth.senderEmail,
+        pass: auth.appPassword
+      }
     });
-
-    const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
     // Format highly clean high-density HTML email layout
     const htmlBody = `
@@ -65,26 +62,16 @@ export async function sendBriefEmailDynamically(payload: BriefPayload, auth: Goo
       </div>
     `;
 
-    const messageParts = [
-      `To: ${config.recipientEmail}`,
-      'Content-Type: text/html; charset=utf-8',
-      'MIME-Version: 1.0',
-      `Subject: =?utf-8?B?${Buffer.from(payload.titleBlock).toString('base64')}?=`,
-      '',
-      htmlBody,
-    ];
-    
-    const message = messageParts.join('\n');
-    const encodedMessage = Buffer.from(message).toString('base64url');
-
-    await gmail.users.messages.send({
-      userId: 'me',
-      requestBody: { raw: encodedMessage },
+    await transporter.sendMail({
+      from: auth.senderEmail,
+      to: config.recipientEmail,
+      subject: payload.titleBlock,
+      html: htmlBody,
     });
 
     return true;
   } catch (error) {
-    console.error("Gmail Dispatch Error:", error);
+    console.error("SMTP Dispatch Error:", error);
     throw error;
   }
 }

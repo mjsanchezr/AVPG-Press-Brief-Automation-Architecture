@@ -1,7 +1,6 @@
-export interface GoogleApiCredentials {
-  clientId: string;
-  clientSecret: string;
-  refreshToken: string;
+export interface SmtpCredentials {
+  senderEmail: string;
+  appPassword: string;
 }
 
 export interface DistributionConfig {
@@ -9,7 +8,7 @@ export interface DistributionConfig {
 }
 
 export interface ExecutionPayload {
-  credentials: GoogleApiCredentials;
+  credentials: SmtpCredentials;
   config: DistributionConfig;
   rawSourceData?: string;
 }

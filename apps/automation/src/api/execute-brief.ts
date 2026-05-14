@@ -12,11 +12,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const payload = req.body as ExecutionPayload;
 
-    if (!payload?.credentials?.clientId || 
-        !payload?.credentials?.clientSecret || 
-        !payload?.credentials?.refreshToken || 
+    if (!payload?.credentials?.senderEmail || 
+        !payload?.credentials?.appPassword || 
         !payload?.config?.recipientEmail) {
-      return res.status(400).json({ error: 'Missing required configuration parameters (clientId, clientSecret, refreshToken, recipientEmail)' });
+      return res.status(400).json({ error: 'Missing required configuration parameters (senderEmail, appPassword, recipientEmail)' });
     }
 
     console.log("[EXECUTE] Initiating dynamic ingestion sequence...");

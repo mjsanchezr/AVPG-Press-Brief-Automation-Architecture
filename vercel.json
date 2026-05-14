@@ -1,22 +1,24 @@
 {
   "version": 2,
-  "crons": [
-    {
-      "path": "/api/cron-trigger",
-      "schedule": "0 7 * * 1,4"
-    }
-  ],
   "builds": [
     {
-      "src": "apps/automation/src/api/cron-trigger.ts",
+      "src": "apps/automation/src/api/*.ts",
       "use": "@vercel/node"
     },
     {
       "src": "apps/dashboard/package.json",
       "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
+      "config": { "distDir": "dist" }
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "apps/automation/src/api/$1.ts"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "apps/dashboard/$1"
     }
   ]
 }
