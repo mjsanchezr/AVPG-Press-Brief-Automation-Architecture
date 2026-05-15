@@ -24,7 +24,7 @@ app.post('/api/execute-brief', executeBriefHandler);
 const PORT = process.env.PORT || 8080;
 // Hard-coded 0.0.0.0 to ensure visibility to Google Cloud Run load balancer
 const server = app.listen(Number(PORT), '0.0.0.0', () => {
-  console.log(`[SUCCESS] AVPG Automation Service active on 0.0.0.0:${PORT}`);
+  console.log(`[SUCCESS] AVPG Server listening on 0.0.0.0:${PORT}`);
 });
 
 export default server; // Re-exporting for process management if needed

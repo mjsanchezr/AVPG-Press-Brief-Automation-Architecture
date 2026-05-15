@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { fetchRawFeeds } from '../services/aggregatorService';
 import { fetchAndCurateLiveBrief } from '../services/curationService';
 import { sendBriefEmailDynamically } from '../services/gmailService';
-import { SmtpCredentials, DistributionConfig } from '../../../../shared/types';
+import type { SmtpCredentials, DistributionConfig } from '../../../../shared/types';
 
 export default async function handler(req: Request, res: Response) {
   try {

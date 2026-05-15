@@ -40,10 +40,8 @@ RUN npm install
 # Copy source code
 COPY . .
 
-# Build the automation service and flatten the output structure
-RUN npm run build --workspace=automation && \
-    cp -r apps/automation/dist/apps/automation/src/* apps/automation/dist/ && \
-    rm -rf apps/automation/dist/apps
+# Build the automation service
+RUN npm run build --workspace=automation
 
 # Expose port
 EXPOSE 8080

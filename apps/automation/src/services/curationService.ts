@@ -7,7 +7,8 @@ export class CurationService {
     this.ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY || '' });
   }
 
-  async generateBrief(date: string, log: (msg: string) => void): Promise<string> {
+  async generateBrief(date: string, log: (msg: string) => void, geminiApiKey?: string): Promise<string> {
+    const aiClient = geminiApiKey ? new GoogleGenAI({ apiKey: geminiApiKey }) : this.ai;
     const model = 'gemini-2.0-flash';
     log(`Initializing AI Grounding Engine with ${model}`);
 
@@ -46,7 +47,7 @@ export class CurationService {
     const prompt = `Generate the AVPG Press Brief for ${date}. Focus on the specified sectors and ensure grounding is active for the most recent data.`;
 
     try {
-      const result = await this.ai.models.generateContent({
+      const result = await aiClient.models.generateContent({
         model: model,
         systemInstruction: systemInstruction,
         contents: [{ role: 'user', parts: [{ text: prompt }] }],

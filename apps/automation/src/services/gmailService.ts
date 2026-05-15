@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer';
 import { marked } from 'marked';
-import { SmtpCredentials, DistributionConfig } from '../../../../shared/types';
+import type { SmtpCredentials, DistributionConfig } from '../../../../shared/types';
 
 export interface MailOptions {
   markdown: string;

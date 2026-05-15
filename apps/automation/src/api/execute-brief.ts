@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { ExecutionPayload } from '../../../../shared/types';
+import type { ExecutionPayload } from '../../../../shared/types';
 import { curationService } from '../services/curationService';
 import { gmailService } from '../services/gmailService';
 import { pdfService } from '../services/pdfService';
@@ -24,7 +24,7 @@ export default async function handler(req: Request, res: Response) {
     log("Grounding: May 15 Intelligence scan initiated");
 
     console.log("[LOG] Search Grounding Started - T+:", Date.now() - startTime, "ms");
-    const markdownBrief = await curationService.generateBrief(targetDate, log);
+    const markdownBrief = await curationService.generateBrief(targetDate, log, payload.credentials.geminiApiKey);
     console.log("[LOG] Brief Curated - T+:", Date.now() - startTime, "ms");
 
     // SAFETY TIMEOUT CHECK (50s)
