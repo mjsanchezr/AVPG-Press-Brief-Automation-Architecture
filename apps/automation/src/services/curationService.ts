@@ -63,7 +63,23 @@ export class CurationService {
       log('Search Grounding successful. Markdown synthesized.');
       return markdown;
     } catch (error: any) {
-      log(`AI Grounding Error: ${error.message}`);
+      log(`AI Grounding Error: ${error.message}. Attempting fallback generation without search grounding...`);
+      
+      try {
+        const fallbackResult = await aiClient.models.generateContent({
+          model: model,
+          systemInstruction: systemInstruction,
+          contents: [{ role: 'user', parts: [{ text: prompt }] }]
+        } as any);
+        const fallbackMarkdown = fallbackResult.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        if (fallbackMarkdown) {
+          log('Fallback synthesis successful.');
+          return fallbackMarkdown;
+        }
+      } catch (fallbackError: any) {
+        log(`Critical AI Failure: ${fallbackError.message}`);
+        throw fallbackError;
+      }
       throw error;
     }
   }

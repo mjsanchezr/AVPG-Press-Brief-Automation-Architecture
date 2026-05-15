@@ -8,10 +8,15 @@ dotenv.config();
 const app = express();
 
 // Middleware
-app.use(cors()); // [DEV] Allow all origins for Dashboard connectivity
-app.options('*', cors()); // Pre-flight support
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  credentials: true
+}));
+app.options('*', cors()); 
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
 // Health Check
 app.get('/health', (req, res) => {

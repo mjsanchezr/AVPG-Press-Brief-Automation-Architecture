@@ -26,7 +26,7 @@ export default function App() {
   const [errorPhase, setErrorPhase] = useState<string | null>(null);
 
   // Hardcoded Defaults
-  const [cloudRunUrl, setCloudRunUrl] = useState('https://avpg-service-517381595351.us-central1.run.app');
+  const [cloudRunUrl, setCloudRunUrl] = useState('https://avpg-service-aybz3o6gqa-uc.a.run.app');
   const [senderEmail, setSenderEmail] = useState('mario101104s@gmail.com');
   const [appPassword, setAppPassword] = useState('vacd oxpg tyqh tcly');
   const [geminiApiKey, setGeminiApiKey] = useState('AIzaSyBVfCp1m0aTfcFC6x_NzIglb_Iub3dVL8I');
