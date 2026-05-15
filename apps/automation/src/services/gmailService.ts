@@ -9,7 +9,8 @@ import { generateBriefPDF } from './pdfService';
 export async function sendBriefEmailDynamically(
   payload: BriefPayload | string, 
   auth: SmtpCredentials, 
-  config: DistributionConfig
+  config: DistributionConfig,
+  pdfBuffer?: Buffer
 ): Promise<boolean> {
   try {
     const transporter = nodemailer.createTransport({
@@ -20,9 +21,9 @@ export async function sendBriefEmailDynamically(
       }
     });
 
-    // Generate the high-fidelity PDF
+    // Generate or use the provided PDF buffer
     const markdown = typeof payload === 'string' ? payload : JSON.stringify(payload);
-    const pdfBuffer = await generateBriefPDF(markdown);
+    const finalPdfBuffer = pdfBuffer || await generateBriefPDF(markdown);
     const fileName = `AVPG_Resumen_Prensa_2026_05_15.pdf`;
 
     const executiveSummary = `
@@ -55,7 +56,7 @@ export async function sendBriefEmailDynamically(
       attachments: [
         {
           filename: fileName,
-          content: pdfBuffer,
+          content: finalPdfBuffer,
           contentType: 'application/pdf'
         }
       ]

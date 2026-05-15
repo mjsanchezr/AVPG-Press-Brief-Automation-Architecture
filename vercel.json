@@ -1,5 +1,11 @@
 {
   "version": 2,
+  "functions": {
+    "apps/automation/src/api/execute-brief.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    }
+  },
   "builds": [
     {
       "src": "apps/automation/src/api/*.ts",

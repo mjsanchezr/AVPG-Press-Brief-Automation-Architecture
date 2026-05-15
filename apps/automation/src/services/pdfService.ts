@@ -1,13 +1,14 @@
 import { marked } from 'marked';
-const html_to_pdf = require('html-pdf-node');
+import puppeteer from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
 
 /**
- * AVPG PDF SERVICE
- * Converts Markdown intelligence reports into high-fidelity, corporate-branded PDFs.
+ * AVPG PDF SERVICE (Production Optimized)
+ * Uses Puppeteer + Chromium for stable high-fidelity rendering in Vercel Serverless environments.
  */
 
 export async function generateBriefPDF(markdown: string): Promise<Buffer> {
-    // Configure marked for custom rendering if needed
+    // Configure marked for HTML generation
     const htmlBody = await marked(markdown);
 
     const htmlContent = `
@@ -59,7 +60,6 @@ export async function generateBriefPDF(markdown: string): Promise<Buffer> {
             h2 { font-size: 16pt; margin-top: 25px; }
             h3 { font-size: 14pt; margin-top: 20px; }
             
-            /* Market Data Table Styles */
             table {
                 width: 100%;
                 border-collapse: collapse;
@@ -81,7 +81,6 @@ export async function generateBriefPDF(markdown: string): Promise<Buffer> {
                 background-color: #f9f9f9;
             }
 
-            /* Content Styling */
             p {
                 margin-bottom: 15px;
                 text-align: justify;
@@ -91,22 +90,7 @@ export async function generateBriefPDF(markdown: string): Promise<Buffer> {
                 text-decoration: none;
                 font-weight: bold;
             }
-            .source-link {
-                font-size: 9pt;
-                color: #7f8c8d;
-                display: block;
-                margin-top: -10px;
-                margin-bottom: 20px;
-            }
-            .nav-link {
-                font-size: 8pt;
-                color: #bdc3c7;
-                text-decoration: none;
-                font-style: italic;
-            }
-
-            /* Footer */
-            footer {
+            .footer {
                 position: fixed;
                 bottom: -10mm;
                 left: 0;
@@ -118,13 +102,9 @@ export async function generateBriefPDF(markdown: string): Promise<Buffer> {
                 border-top: 1px solid #eee;
                 padding-top: 5px;
             }
-
-            /* Force page breaks for major sections */
             .page-break {
                 page-break-before: always;
             }
-
-            /* Headline list styling */
             ul {
                 list-style-type: none;
                 padding-left: 0;
@@ -146,40 +126,49 @@ export async function generateBriefPDF(markdown: string): Promise<Buffer> {
                 <div class="logo-text">AVPG</div>
                 <div class="brief-title">Resumen de Prensa</div>
             </header>
-
             <div class="content">
                 ${htmlBody}
             </div>
         </div>
-
-        <footer>
+        <div class="footer">
             AVPG Press Brief Automation — Grounded Intelligence Delivery — May 15, 2026
-        </footer>
+        </div>
     </body>
     </html>
     `;
 
-    const options = { 
-        format: 'A4',
-        margin: {
-            top: '20mm',
-            right: '20mm',
-            bottom: '25mm',
-            left: '20mm'
-        },
-        printBackground: true
-    };
-
-    const file = { content: htmlContent };
-
-    return new Promise((resolve, reject) => {
-        html_to_pdf.generatePdf(file, options, (err: any, buffer: Buffer) => {
-            if (err) {
-                console.error("PDF Generation Error:", err);
-                reject(err);
-            } else {
-                resolve(buffer);
-            }
+    let browser;
+    try {
+        console.log("[PDF] Launching browserless chromium instance...");
+        browser = await puppeteer.launch({
+            args: chromium.args,
+            executablePath: await chromium.executablePath(),
+            headless: true,
         });
-    });
+
+        const page = await browser.newPage();
+        await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
+        
+        console.log("[PDF] Rendering high-fidelity PDF buffer...");
+        const pdf = await page.pdf({
+            format: 'A4',
+            margin: {
+                top: '20mm',
+                right: '20mm',
+                bottom: '25mm',
+                left: '20mm'
+            },
+            printBackground: true
+        });
+
+        return Buffer.from(pdf);
+    } catch (error) {
+        console.error("[PDF] Service Error:", error);
+        throw error;
+    } finally {
+        if (browser) {
+            await browser.close();
+        }
+    }
 }
+
