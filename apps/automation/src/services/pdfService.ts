@@ -1,190 +1,152 @@
-import { marked } from 'marked';
 import puppeteer from 'puppeteer';
+import { marked } from 'marked';
 
-export class PDFService {
-  async generatePDF(markdown: string, date: string, log: (msg: string) => void): Promise<Buffer> {
-    log('Generating HTML template from Markdown');
-    
-    // Configure marked for anchor links and GFM
-    const htmlBody = await marked(markdown, { 
-      gfm: true,
-      breaks: true
-    });
+/**
+ * Service to render the Markdown intelligence brief into a high-fidelity PDF.
+ * Optimized for Google Cloud Run environments.
+ */
+export async function generatePDF(markdown: string): Promise<Buffer> {
+  const htmlContent = await marked.parse(markdown);
 
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <style>
-          @page { 
-            size: A4; 
-            margin: 20mm; 
-            @bottom-right {
-              content: counter(page) " / " counter(pages);
-              font-size: 10px;
-              color: #999;
-            }
-          }
-          body { 
-            font-family: 'Helvetica', 'Arial', sans-serif; 
-            color: #1a1a1a; 
-            line-height: 1.6; 
-            margin: 0; 
-            padding: 0; 
-            background-color: #fff;
-          }
-          header { 
-            border-bottom: 5px solid #1B4B8A; 
-            padding-bottom: 20px; 
-            margin-bottom: 40px; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: flex-end; 
-          }
-          .logo { 
-            font-size: 42px; 
-            font-weight: 900; 
-            color: #1B4B8A; 
-            letter-spacing: -2px;
-            line-height: 1;
-          }
-          .date-box { 
-            text-align: right;
-          }
-          .date-label {
-            font-size: 10px;
-            text-transform: uppercase;
-            color: #1B4B8A;
-            font-weight: 800;
-            display: block;
-            letter-spacing: 1px;
-            margin-bottom: 4px;
-          }
-          .date-value {
-            font-size: 16px;
-            color: #333;
-            font-weight: 400;
-          }
-          h1, h2, h3 { 
-            color: #1B4B8A; 
-            font-weight: 800;
-            margin-top: 35px;
-            margin-bottom: 15px;
-          }
-          h1 { 
-            font-size: 28px; 
-            text-transform: uppercase; 
-            border-bottom: 2px solid #1B4B8A;
-            padding-bottom: 10px;
-          }
-          h2 { 
-            font-size: 22px; 
-            border-left: 8px solid #1B4B8A;
-            padding-left: 15px;
-          }
-          
-          .titulares-list {
-            background-color: #f4f7fa;
-            padding: 30px;
-            margin-bottom: 40px;
-            border-radius: 4px;
-          }
-          
-          table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin: 25px 0; 
-            font-size: 12px;
-          }
-          th, td { 
-            border: 1px solid #e0e0e0; 
-            padding: 12px; 
-            text-align: left; 
-          }
-          th { 
-            background-color: #1B4B8A; 
-            color: #ffffff; 
-            font-weight: bold;
-            text-transform: uppercase;
-          }
-          tr:nth-child(even) { background-color: #f9f9f9; }
-          
-          .page-break { page-break-after: always; }
-          
-          a { 
-            color: #1B4B8A; 
-            text-decoration: underline; 
-          }
-          
-          .footer { 
-            position: fixed; 
-            bottom: 0; 
-            width: 100%; 
-            text-align: center; 
-            font-size: 9px; 
-            color: #666; 
-            border-top: 1px solid #eee; 
-            padding: 15px 0;
-            background-color: #fff;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-          }
-          .legal-stamp {
-            font-weight: bold;
-            color: #1B4B8A;
-            margin-top: 5px;
-          }
-        </style>
-      </head>
-      <body>
-        <header>
-          <div class="logo">AVPG</div>
-          <div class="date-box">
-            <span class="date-label">Intelligence Briefing</span>
-            <span class="date-value">Friday, May 15, 2026</span>
-          </div>
-        </header>
+  const styledHtml = `
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
         
-        <div class="content">
-          ${htmlBody}
-        </div>
+        body {
+          font-family: 'Helvetica', 'Arial', sans-serif;
+          color: #333;
+          line-height: 1.6;
+          padding: 40px;
+          background: #fff;
+        }
         
-        <div class="footer">
-          AVPG Intelligence Division | Confidential Industrial Report
-          <div class="legal-stamp">
-            AVPG - Depósito Legal Nro. pp200602DC2401
-          </div>
+        h1 { 
+          color: #1B4B8A; 
+          font-size: 28px; 
+          border-bottom: 3px solid #1B4B8A; 
+          padding-bottom: 10px;
+          text-transform: uppercase;
+          margin-top: 40px;
+        }
+        
+        h2 { 
+          color: #1B4B8A; 
+          font-size: 20px; 
+          margin-top: 30px; 
+          text-transform: uppercase;
+        }
+        
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 20px 0;
+          font-size: 12px;
+        }
+        
+        th {
+          background-color: #1B4B8A;
+          color: white;
+          text-align: left;
+          padding: 12px;
+          text-transform: uppercase;
+        }
+        
+        td {
+          padding: 10px;
+          border-bottom: 1px solid #eee;
+        }
+        
+        tr:nth-child(even) {
+          background-color: #f9f9f9;
+        }
+        
+        .page-break {
+          page-break-after: always;
+        }
+        
+        footer {
+          position: fixed;
+          bottom: 20px;
+          width: 100%;
+          text-align: center;
+          font-size: 10px;
+          color: #888;
+          border-top: 1px solid #eee;
+          padding-top: 10px;
+        }
+        
+        .header-top {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 40px;
+        }
+        
+        .logo-text {
+          font-weight: 900;
+          font-size: 24px;
+          color: #1B4B8A;
+          letter-spacing: -1px;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header-top">
+        <div class="logo-text">AVPG INTELLIGENCE</div>
+        <div style="text-align: right; font-size: 12px; font-weight: bold; color: #666;">
+          15 DE MAYO DE 2026<br>PRODUCCIÓN EJECUTIVA
         </div>
-      </body>
-      </html>
-    `;
-
-    log('Launching Puppeteer (Chromium)');
-    const browser = await puppeteer.launch({
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-    });
-
-    try {
-      const page = await browser.newPage();
-      await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+      </div>
       
-      log('Creating PDF Buffer');
-      const pdf = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: { top: '20mm', right: '20mm', bottom: '20mm', left: '20mm' }
-      });
+      <div class="content">
+        ${htmlContent}
+      </div>
 
-      return Buffer.from(pdf);
-    } catch (error: any) {
-      log(`PDF Generation Error: ${error.message}`);
-      throw error;
-    } finally {
+      <footer>
+        © 2026 Asociación Venezolana de Procesadores de Gas (AVPG) - Confidencial
+      </footer>
+    </body>
+    </html>
+  `;
+
+  let browser;
+  try {
+    browser = await puppeteer.launch({
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu'
+      ],
+      headless: true
+    });
+
+    const page = await browser.newPage();
+    await page.setContent(styledHtml, { waitUntil: 'networkidle0' });
+
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: {
+        top: '20mm',
+        bottom: '20mm',
+        left: '15mm',
+        right: '15mm'
+      }
+    });
+
+    return Buffer.from(pdfBuffer);
+  } catch (error: any) {
+    console.error("Puppeteer Rendering Error:", error);
+    throw new Error(`PDF Generation Failed: ${error.message}`);
+  } finally {
+    if (browser) {
       await browser.close();
     }
   }
 }
-
-export const pdfService = new PDFService();

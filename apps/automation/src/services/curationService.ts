@@ -1,110 +1,59 @@
-export class CurationService {
-  async generateBrief(date: string, log: (msg: string) => void, geminiApiKey?: string): Promise<string> {
-    const apiKey = geminiApiKey || process.env.GOOGLE_API_KEY || '';
-    if (!apiKey) throw new Error("Missing API Key. Please provide a valid Gemini API Key.");
+import { GoogleGenAI } from '@google/genai';
 
-    // The most robust way to find a working model is to try them in order of reliability
-    const targetModels = [
-      'gemini-1.5-flash',
-      'gemini-1.5-pro',
-      'gemini-pro' // Legacy 1.0 fallback
-    ];
+/**
+ * Service to curate macroeconomic and energy intelligence using Gemini 2.0.
+ * Strictly grounded in the May 11-15, 2026 timeframe.
+ */
+export async function curateIntelligence(apiKey: string): Promise<string> {
+  // Initialize the modern Google GenAI SDK
+  const ai = new GoogleGenAI({ 
+    apiKey: apiKey,
+    platform: 'google_ai' // Explicitly targeting the developer platform
+  });
 
-    let lastError = null;
+  const prompt = `
+    TODAY IS FRIDAY, MAY 15, 2026.
+    You are a Senior Energy Analyst for AVPG (Asociación Venezolana de Procesadores de Gas).
+    
+    TASK:
+    Generate a high-density macroeconomic and energy intelligence brief.
+    Use Google Search to discover news STRICTLY between May 11 and May 15, 2026.
+    Ignore any data or news from April or earlier unless it provides critical context for a May event.
+    
+    OUTPUT FORMAT:
+    Produce a professional, high-fidelity Markdown report replicating a 30-page corporate intelligence structure. 
+    Use the following exact sections:
+    
+    1. # TITULARES (Top 5 critical global headlines)
+    2. # VENEZUELA (Focus on Chevron, Eni, Repsol, and BCV monetary policy)
+    3. # LATINOAMÉRICA (Focus on regional energy clusters, specifically Atlantic LNG/Trinidad)
+    4. # TRANSICIÓN ENERGÉTICA (Hydrogen, solar, and carbon credit markets)
+    5. # MERCADOS (Tabular data for WTI, Brent, Natural Gas Futures, and the VEB/USD exchange rate)
+    
+    TONE:
+    Technical, objective, and industrial. Use Markdown tables for market data.
+    Ensure explicit page breaks using <div style="page-break-after: always;"></div> between major sections.
+  `;
 
-    for (const modelId of targetModels) {
-      try {
-        log(`Attempting synthesis with model: ${modelId}...`);
-        
-        // We use v1beta as it typically has the widest model availability for new keys
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
-        
-        const payload = {
-          contents: [{
-            parts: [{ text: `${this.getSystemInstruction()}\n\nGenerate the AVPG Press Brief for ${date}. Focus on Venezuela energy and regional markets.` }]
-          }],
-          generationConfig: {
-            temperature: 0.2,
-            topP: 0.8,
-            maxOutputTokens: 8192
-          }
-        };
-
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-          const markdown = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (markdown) {
-            log(`Success: Intelligence synthesized via ${modelId}.`);
-            return markdown;
-          }
-        }
-
-        log(`Model ${modelId} failed: ${data.error?.message || 'Unknown error'}`);
-        lastError = data.error?.message || `HTTP ${response.status}`;
-      } catch (e: any) {
-        log(`Network/Protocol error for ${modelId}: ${e.message}`);
-        lastError = e.message;
+  try {
+    const result = await ai.models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: {
+        tools: [{ googleSearch: {} }]
       }
+    });
+
+    const response = result.response;
+    const text = response.text();
+
+    if (!text) {
+      throw new Error("Gemini returned an empty intelligence report.");
     }
 
-    // FINAL FALLBACK: Model Discovery
-    // If hardcoded models fail, we try to ask the API what models ARE available
-    try {
-      log("All primary models failed. Attempting Model Discovery...");
-      const discoveryUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
-      const discoveryResp = await fetch(discoveryUrl);
-      const discoveryData = await discoveryResp.json();
-      
-      if (discoveryData.models && discoveryData.models.length > 0) {
-        const availableModels = discoveryData.models
-          .filter((m: any) => m.supportedGenerationMethods.includes('generateContent'))
-          .map((m: any) => m.name.split('/').pop());
-        
-        log(`Discovery found available models: ${availableModels.join(', ')}`);
-        
-        if (availableModels.length > 0) {
-          const firstAvailable = availableModels[0];
-          log(`Attempting discovery fallback with: ${firstAvailable}...`);
-          // ... repeat call with firstAvailable
-          const finalUrl = `https://generativelanguage.googleapis.com/v1beta/models/${firstAvailable}:generateContent?key=${apiKey}`;
-          const finalResp = await fetch(finalUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: `Generate a short brief for ${date}.` }] }]
-            })
-          });
-          const finalData = await finalResp.json();
-          return finalData.candidates?.[0]?.content?.parts?.[0]?.text || "Discovery model failed to produce text.";
-        }
-      }
-    } catch (discoveryError: any) {
-      log(`Discovery failed: ${discoveryError.message}`);
-    }
-
-    throw new Error(`Exhaustive Synthesis Failure. Last error: ${lastError}. Please verify your API key has the 'Generative Language API' enabled in Google Cloud Console.`);
+    return text;
+  } catch (error: any) {
+    console.error("Gemini Curation Error:", error);
+    throw new Error(`Intelligence Synthesis Failed: ${error.message}`);
   }
-
-  private getSystemInstruction(): string {
-    return `
-      TODAY IS FRIDAY, MAY 15, 2026. You are a Principal AI Automation Engineer & Senior Energy Analyst for AVPG.
-      TASK: Generate a high-density intelligence brief for Friday, May 15, 2026.
-      Focus on Venezuela energy (Chevron, Eni, Repsol) and regional macroeconomics.
-      Format: Markdown. Tone: Professional.
-    `;
-  }
-}
-
-export const curationService = new CurationService();
-
-export async function fetchAndCurateLiveBrief(feeds: string[]): Promise<string> {
-  const targetDate = '2026-05-15';
-  return curationService.generateBrief(targetDate, (msg) => console.log(`[CurationService] ${msg}`));
 }

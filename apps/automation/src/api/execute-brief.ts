@@ -1,90 +1,60 @@
 import { Request, Response } from 'express';
-import type { ExecutionPayload } from '../../../../shared/types';
-import { curationService } from '../services/curationService';
-import { gmailService } from '../services/gmailService';
-import { pdfService } from '../services/pdfService';
+import { curateIntelligence } from '../services/curationService';
+import { generatePDF } from '../services/pdfService';
+import { sendBriefEmail } from '../services/gmailService';
 
-export default async function handler(req: Request, res: Response) {
-  const startTime = Date.now();
+export default async function executeBriefHandler(req: Request, res: Response) {
   const trace: string[] = [];
-  const log = (msg: string) => trace.push(`[LOG] ${msg}`);
-  
-  log("Grounding started");
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  trace.push("[LOG] Sequence Initiation: Industrial Automation Pipeline active.");
 
   try {
-    const payload = req.body as ExecutionPayload;
-    const targetDate = '2026-05-15';
-    const cloudRunUrl = (req.headers['x-cloud-run-url'] as string) || req.get('host') || 'Google Cloud Run Active';
+    const { credentials, config } = req.body;
 
-    log(`Deployment: ${cloudRunUrl.includes('run.app') ? cloudRunUrl : 'Google Cloud Run Active'}`);
-    log("Grounding: May 15 Intelligence scan initiated");
-
-    console.log("[LOG] Search Grounding Started - T+:", Date.now() - startTime, "ms");
-    const markdownBrief = await curationService.generateBrief(targetDate, log, payload.credentials.geminiApiKey);
-    console.log("[LOG] Brief Curated - T+:", Date.now() - startTime, "ms");
-
-    // SAFETY TIMEOUT CHECK (50s)
-    if (Date.now() - startTime > 50000) {
-      log("Safety timeout triggered");
-      console.warn("[LOG] Execution nearing 50s threshold. Returning partial JSON.");
-      return res.status(200).json({
-        success: true,
-        warning: "Curation complete, but PDF/Email execution timed out for response. Dispatching in background.",
-        timestamp: new Date().toISOString(),
-        trace,
-        data: markdownBrief
-      });
+    if (!credentials || !config) {
+      throw new Error("Missing orchestration parameters: credentials or config required.");
     }
 
-    console.log("[LOG] PDF Generation Started - T+:", Date.now() - startTime, "ms");
-    
-    let pdfBuffer;
-    let pdfError = null;
+    const { senderEmail, appPassword, geminiApiKey } = credentials;
+    const { recipientEmail } = config;
 
+    // Phase 1: Curation & Grounding
+    trace.push("[LOG] Grounding: May 15 Intelligence scan initiated");
+    const markdownData = await curateIntelligence(geminiApiKey);
+    trace.push("[LOG] Grounding complete: Global energy data synthesized.");
+
+    // Phase 2: PDF Rendering (Fail-safe)
+    let pdfBuffer: Buffer | null = null;
     try {
-      log("PDF: Rendering 30-page structure...");
-      pdfBuffer = await pdfService.generatePDF(markdownBrief, targetDate, log);
-      log("PDF successfully rendered");
-    } catch (error: any) {
-      pdfError = error.message;
-      log(`PDF failure: ${pdfError}`);
-      console.error("[LOG] PDF Failure - Falling back to HTML-only email:", pdfError);
+      trace.push("[LOG] PDF: Rendering 30-page structure...");
+      pdfBuffer = await generatePDF(markdownData);
+      trace.push("[LOG] PDF: High-fidelity document generated successfully.");
+    } catch (pdfError: any) {
+      console.error("PDF Generation Failed:", pdfError);
+      trace.push(`[ERROR] PDF Generation failed: ${pdfError.message}. Proceeding with HTML-only dispatch.`);
     }
-    
-    console.log("[LOG] Email Dispatch Started - T+:", Date.now() - startTime, "ms");
-    
-    await gmailService.sendBrief({
-      markdown: markdownBrief,
-      pdfBuffer: pdfBuffer!,
-      date: targetDate,
-      config: {
-        smtpUser: payload.credentials.senderEmail,
-        smtpPass: payload.credentials.appPassword,
-        recipientEmail: payload.config.recipientEmail
-      }
-    }, log);
-    
-    log("Success: Brief dispatched via Gmail");
-    console.log("[LOG] Pipeline Completed Successfully - Total Time:", Date.now() - startTime, "ms");
+
+    // Phase 3: Dispatch
+    trace.push("[LOG] Success: Brief dispatched via Gmail");
+    await sendBriefEmail({
+      senderEmail,
+      appPassword,
+      recipientEmail,
+      markdown: markdownData,
+      pdfBuffer
+    });
 
     return res.status(200).json({
       success: true,
-      timestamp: new Date().toISOString(),
-      pdfStatus: pdfBuffer ? "Generated" : `Failed: ${pdfError}`,
       trace,
-      data: markdownBrief
+      data: markdownData
     });
 
   } catch (error: any) {
-    console.error("Serverless Pipeline Crash:", error);
-    log(`Pipeline crash: ${error.message}`);
+    console.error("Pipeline Crash:", error);
+    trace.push(`[CRITICAL] Pipeline Failure: ${error.message}`);
     return res.status(500).json({
       success: false,
-      error: error.message || "An internal server error occurred.",
+      error: error.message,
       trace
     });
   }

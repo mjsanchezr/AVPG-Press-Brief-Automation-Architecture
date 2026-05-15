@@ -1,99 +1,65 @@
 import nodemailer from 'nodemailer';
 import { marked } from 'marked';
-import type { SmtpCredentials, DistributionConfig } from '../../../../shared/types';
 
-export interface MailOptions {
+interface EmailParams {
+  senderEmail: string;
+  appPassword: string;
+  recipientEmail: string;
   markdown: string;
-  pdfBuffer: Buffer;
-  date: string;
-  config: {
-    smtpUser: string;
-    smtpPass: string;
-    recipientEmail: string;
-  };
+  pdfBuffer: Buffer | null;
 }
 
-export class GmailService {
-  async sendBrief(options: MailOptions, log: (msg: string) => void): Promise<void> {
-    const { markdown, pdfBuffer, date, config } = options;
-    
-    log(`Configuring SMTP Transport for ${config.smtpUser}`);
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: config.smtpUser,
-        pass: config.smtpPass
-      }
-    });
-
-    const fileName = `AVPG_Resumen_Prensa_2026_05_15.pdf`;
-    const htmlFallback = await marked(markdown);
-
-    const mailOptions = {
-      from: `"AVPG Automation" <${config.smtpUser}>`,
-      to: config.recipientEmail,
-      subject: `🛢️ AVPG RESUMEN DE PRENSA — 15 DE MAYO DE 2026`,
-      html: `
-        <div style="font-family: Helvetica, Arial, sans-serif; color: #333;">
-          <h1 style="color: #1B4B8A;">AVPG Intelligence Brief</h1>
-          <p>Please find attached the high-fidelity PDF report for <strong>May 15, 2026</strong>.</p>
-          <hr/>
-          <div class="brief-content">
-            ${htmlFallback}
-          </div>
-          <footer style="margin-top: 20px; font-size: 12px; color: #999;">
-            Automated via AVPG Cloud Run Architecture.
-          </footer>
-        </div>
-      `,
-      attachments: [
-        {
-          filename: fileName,
-          content: pdfBuffer,
-          contentType: 'application/pdf'
-        }
-      ]
-    };
-
-    try {
-      log('Dispatching Email via SMTP');
-      await transporter.sendMail(mailOptions);
-      log('Email dispatched successfully');
-    } catch (error: any) {
-      log(`SMTP Dispatch Error: ${error.message}`);
-      // Fallback: Try sending without attachment if it failed due to size or other PDF issues
-      log('Attempting fallback: Sending high-density HTML body only');
-      await transporter.sendMail({
-        ...mailOptions,
-        attachments: [],
-        subject: mailOptions.subject + ' (HTML Fallback)'
-      });
-      log('Fallback email dispatched successfully');
+/**
+ * Service to dispatch the intelligence brief via Gmail SMTP.
+ */
+export async function sendBriefEmail({
+  senderEmail,
+  appPassword,
+  recipientEmail,
+  markdown,
+  pdfBuffer
+}: EmailParams): Promise<void> {
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: senderEmail,
+      pass: appPassword
     }
-  }
-}
+  });
 
-export const gmailService = new GmailService();
+  const htmlBody = await marked.parse(markdown);
 
-export async function sendBriefEmailDynamically(
-  payload: string, 
-  auth: SmtpCredentials, 
-  config: DistributionConfig
-): Promise<boolean> {
-  try {
-    await gmailService.sendBrief({
-      markdown: payload,
-      pdfBuffer: Buffer.alloc(0), // Dummy buffer for now if PDF is not required or handled elsewhere
-      date: '2026-05-15',
-      config: {
-        smtpUser: auth.senderEmail,
-        smtpPass: auth.appPassword,
-        recipientEmail: config.recipientEmail
+  const mailOptions: nodemailer.SendMailOptions = {
+    from: `"AVPG Intelligence" <${senderEmail}>`,
+    to: recipientEmail,
+    subject: `🛢️ AVPG RESUMEN DE PRENSA — 15 DE MAYO DE 2026`,
+    html: `
+      <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px;">
+        <h2 style="color: #1B4B8A;">AVPG Intelligence Brief</h2>
+        <p>Adjunto encontrará el resumen de prensa correspondiente al 15 de mayo de 2026.</p>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+        <div class="markdown-content">
+          ${htmlBody}
+        </div>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+        <p style="font-size: 10px; color: #888;">
+          Este mensaje fue generado automáticamente por el AVPG Intelligence Loop.
+        </p>
+      </div>
+    `,
+    attachments: pdfBuffer ? [
+      {
+        filename: `AVPG_Resumen_Prensa_2026_05_15.pdf`,
+        content: pdfBuffer
       }
-    }, (msg) => console.log(`[GmailService] ${msg}`));
-    return true;
-  } catch (error) {
-    console.error("[GmailService] sendBriefEmailDynamically failed:", error);
-    return false;
+    ] : []
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`[SUCCESS] Email sent to ${recipientEmail}`);
+  } catch (error: any) {
+    console.error("Nodemailer Dispatch Error:", error);
+    throw new Error(`Email Dispatch Failed: ${error.message}`);
   }
 }
