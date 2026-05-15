@@ -4,100 +4,66 @@ export class CurationService {
   private ai: GoogleGenerativeAI;
 
   constructor() {
-    // Default instance using env var if present
     this.ai = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
   }
 
   async generateBrief(date: string, log: (msg: string) => void, geminiApiKey?: string): Promise<string> {
     const genAI = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : this.ai;
     
-    // Attempt to use gemini-1.5-flash which is the most reliable model
-    const models = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-pro'];
+    // Using the most reliable model name
+    const modelName = 'gemini-1.5-flash';
     
-    for (const modelName of models) {
+    try {
+      log(`Initiating synthesis with ${modelName} (Stable Mode)...`);
+      
+      const model = genAI.getGenerativeModel({ 
+        model: modelName,
+        systemInstruction: this.getSystemInstruction()
+      });
+
+      // No tools, no complex config. Pure generation.
+      const result = await model.generateContent(`Generate the AVPG Press Brief for ${date}. Focus on Venezuela energy and regional macroeconomics.`);
+      
+      const markdown = result.response.text();
+      
+      if (!markdown) {
+        throw new Error('Empty response from AI engine');
+      }
+
+      log(`Success: Intelligence synthesized via ${modelName}.`);
+      return markdown;
+    } catch (error: any) {
+      log(`Critical AI Error: ${error.message}`);
+      
+      // Secondary fallback to 1.5-pro just in case flash is down/quota
       try {
-        log(`Attempting generation with ${modelName} (Search Grounding enabled)...`);
-        
-        // Ensure we are using the correct model object
-        const model = genAI.getGenerativeModel({ 
-          model: modelName,
-          systemInstruction: this.getSystemInstruction()
-        });
-
-        // Use a more standard generation approach
-        const result = await model.generateContent({
-          contents: [{ role: 'user', parts: [{ text: `Generate the AVPG Press Brief for ${date}. Focus on energy and macroeconomics for Venezuela and the region.` }] }],
-          // Search grounding is often the source of 403s/404s in some regions/projects
-          // We will try it, but the fallback will skip it
-          tools: [
-            {
-              // @ts-ignore
-              googleSearchRetrieval: {}
-            }
-          ] as any
-        });
-
-        const markdown = result.response.text();
-        if (markdown) {
-          log(`Success: Intelligence synthesized via ${modelName}.`);
-          return markdown;
-        }
-      } catch (error: any) {
-        log(`Model ${modelName} failed: ${error.message}`);
-        
-        // Fallback: Try WITHOUT tools (Search Grounding)
-        log(`Retrying ${modelName} WITHOUT search grounding...`);
-        try {
-          const simpleModel = genAI.getGenerativeModel({ 
-            model: modelName,
-            systemInstruction: this.getSystemInstruction()
-          });
-          const result = await simpleModel.generateContent(`Generate the AVPG Press Brief for ${date}. Focus on energy and macroeconomics for Venezuela and the region.`);
-          const markdown = result.response.text();
-          if (markdown) {
-            log(`Success: Fallback synthesis complete via ${modelName} (No grounding).`);
-            return markdown;
-          }
-        } catch (fallbackError: any) {
-          log(`Simple generation for ${modelName} failed: ${fallbackError.message}`);
-        }
+        log("Attempting emergency fallback to gemini-1.5-pro...");
+        const proModel = genAI.getGenerativeModel({ model: 'gemini-1.5-pro', systemInstruction: this.getSystemInstruction() });
+        const proResult = await proModel.generateContent(`Generate the AVPG Press Brief for ${date}.`);
+        return proResult.response.text();
+      } catch (proError: any) {
+        log(`All models failed. Final Error: ${proError.message}`);
+        throw new Error(`AI Synthesis Failure: ${proError.message}. This usually indicates an invalid API key or exhausted quota.`);
       }
     }
-
-    throw new Error("All AI synthesis models and methods failed. Please check your API key status.");
   }
 
   private getSystemInstruction(): string {
     return `
       TODAY IS FRIDAY, MAY 15, 2026. You are a Principal AI Automation Engineer & Senior Energy Analyst for AVPG.
       
-      TASK: Execute a multi-cluster search for news published strictly between May 11 and May 15, 2026. IGNORE ALL DATA FROM APRIL OR EARLIER.
+      TASK: Generate a high-density intelligence brief for Friday, May 15, 2026.
       
-      INTELLIGENCE PARAMETERS (Friday, May 15, 2026):
-      - Venezuela Priority:
-          - Eni/Repsol gas export progress and infrastructure.
-          - Chevron output updates and operational status.
-          - BCV (Banco Central de Venezuela) mid-May inflation figures and exchange rate (USD/VED).
-      - Regional Priority:
-          - Atlantic LNG (Trinidad & Venezuela) integration and project milestones.
-          - Petrobras 2026 outlook and strategic investment plan.
-      - Markets Priority:
-          - Real-time price for WTI, Brent, and Natural Gas (Henry Hub) for TODAY, May 15, 2026.
+      CONTENT FOCUS:
+      - Venezuela: Eni/Repsol gas projects, Chevron operations, BCV inflation/exchange rates.
+      - Region: Atlantic LNG, Petrobras 2026 plan.
+      - Markets: WTI, Brent, Natural Gas prices for May 15, 2026.
 
-      STRUCTURAL BLUEPRINT (Replicate 30-page fidelity):
-      1. Section 1: Titulares (Headlines) - High-density list with anchor links to sections below.
-      2. Section 2: Venezuela - Analytical blocks on energy and macroeconomics.
-      3. Section 3: Latinoamérica - Regional energy focus (Petrobras, Caribbean).
-      4. Section 4: Internacional - Global energy geopolitics.
-      5. Section 5: Transición Energética - Evolution towards sustainable matrices.
-      6. Section 6: Mercados - A clean table showing prices and % change from the start of the week.
-
-      OUTPUT FORMAT:
-      - Structured Markdown with active click-through hyperlinks.
-      - Each news item MUST have a "🔗 Fuente" link.
-      - Professional, high-density analytical tone.
-      - For Markets, use Markdown tables.
-      - Ensure the layout is extensive enough to warrant a 30-page high-fidelity PDF render.
+      FORMAT:
+      - High-density Markdown.
+      - Professional analytical tone.
+      - Use tables for markets.
+      - Ensure length is sufficient for a 30-page PDF report.
     `;
   }
 }
