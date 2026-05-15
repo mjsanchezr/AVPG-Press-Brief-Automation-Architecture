@@ -9,10 +9,61 @@ export class CurationService {
 
   async generateBrief(date: string, log: (msg: string) => void, geminiApiKey?: string): Promise<string> {
     const aiClient = geminiApiKey ? new GoogleGenAI({ apiKey: geminiApiKey }) : this.ai;
-    const model = 'gemini-2.0-flash';
-    log(`Initializing AI Grounding Engine with ${model}`);
-
+    const models = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+    
     const systemInstruction = `
+      TODAY IS FRIDAY, MAY 15, 2026. You are a Principal AI Automation Engineer & Senior Energy Analyst for AVPG.
+      TASK: Execute a multi-cluster search for news published strictly between May 11 and May 15, 2026.
+      ... (rest of the instruction)
+    `;
+
+    for (const model of models) {
+      try {
+        log(`Attempting generation with ${model} (Search Grounding enabled)...`);
+        const result = await aiClient.models.generateContent({
+          model: model,
+          systemInstruction: this.getSystemInstruction(),
+          contents: [{ role: 'user', parts: [{ text: `Generate the AVPG Press Brief for ${date}.` }] }],
+          tools: [{ googleSearch: {} }]
+        } as any);
+
+        const markdown = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        if (markdown) {
+          log(`Success: Intelligence synthesized via ${model}.`);
+          return markdown;
+        }
+      } catch (error: any) {
+        const isQuotaError = error.message?.includes('429') || error.message?.includes('quota');
+        const isPermissionError = error.message?.includes('403');
+
+        if (isQuotaError) {
+          log(`Quota exceeded for ${model}. Trying next available model...`);
+          continue; 
+        }
+
+        log(`Search Grounding failed for ${model}: ${error.message}. Retrying without grounding...`);
+        try {
+          const fallbackResult = await aiClient.models.generateContent({
+            model: model,
+            systemInstruction: this.getSystemInstruction(),
+            contents: [{ role: 'user', parts: [{ text: `Generate the AVPG Press Brief for ${date}.` }] }]
+          } as any);
+          const fallbackMarkdown = fallbackResult.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          if (fallbackMarkdown) {
+            log(`Success: Fallback synthesis complete via ${model} (No grounding).`);
+            return fallbackMarkdown;
+          }
+        } catch (fallbackError: any) {
+          log(`Critical failure for ${model}: ${fallbackError.message}`);
+          if (models.indexOf(model) === models.length - 1) throw fallbackError;
+        }
+      }
+    }
+    throw new Error("All AI synthesis attempts failed.");
+  }
+
+  private getSystemInstruction(): string {
+    return `
       TODAY IS FRIDAY, MAY 15, 2026. You are a Principal AI Automation Engineer & Senior Energy Analyst for AVPG.
       
       TASK: Execute a multi-cluster search for news published strictly between May 11 and May 15, 2026. IGNORE ALL DATA FROM APRIL OR EARLIER.
@@ -43,45 +94,6 @@ export class CurationService {
       - For Markets, use Markdown tables.
       - Ensure the layout is extensive enough to warrant a 30-page high-fidelity PDF render.
     `;
-
-    const prompt = `Generate the AVPG Press Brief for ${date}. Focus on the specified sectors and ensure grounding is active for the most recent data.`;
-
-    try {
-      const result = await aiClient.models.generateContent({
-        model: model,
-        systemInstruction: systemInstruction,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        tools: [{ googleSearch: {} }]
-      } as any);
-
-      const markdown = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      
-      if (!markdown) {
-        throw new Error('AI Engine returned empty content');
-      }
-
-      log('Search Grounding successful. Markdown synthesized.');
-      return markdown;
-    } catch (error: any) {
-      log(`AI Grounding Error: ${error.message}. Attempting fallback generation without search grounding...`);
-      
-      try {
-        const fallbackResult = await aiClient.models.generateContent({
-          model: model,
-          systemInstruction: systemInstruction,
-          contents: [{ role: 'user', parts: [{ text: prompt }] }]
-        } as any);
-        const fallbackMarkdown = fallbackResult.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        if (fallbackMarkdown) {
-          log('Fallback synthesis successful.');
-          return fallbackMarkdown;
-        }
-      } catch (fallbackError: any) {
-        log(`Critical AI Failure: ${fallbackError.message}`);
-        throw fallbackError;
-      }
-      throw error;
-    }
   }
 }
 
