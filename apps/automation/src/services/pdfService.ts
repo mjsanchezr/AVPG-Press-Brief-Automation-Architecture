@@ -27,103 +27,94 @@ export class PDFService {
             }
           }
           body { 
-            font-family: 'Helvetica', Arial, sans-serif; 
-            color: #333; 
-            line-height: 1.5; 
+            font-family: 'Helvetica', 'Arial', sans-serif; 
+            color: #1a1a1a; 
+            line-height: 1.6; 
             margin: 0; 
             padding: 0; 
             background-color: #fff;
           }
           header { 
-            border-bottom: 4px solid #1B4B8A; 
-            padding-bottom: 15px; 
-            margin-bottom: 30px; 
+            border-bottom: 5px solid #1B4B8A; 
+            padding-bottom: 20px; 
+            margin-bottom: 40px; 
             display: flex; 
             justify-content: space-between; 
-            align-items: center; 
-          }
-          .logo-container {
-            display: flex;
-            align-items: center;
+            align-items: flex-end; 
           }
           .logo { 
-            font-size: 38px; 
-            font-weight: 800; 
+            font-size: 42px; 
+            font-weight: 900; 
             color: #1B4B8A; 
-            letter-spacing: -1px;
+            letter-spacing: -2px;
+            line-height: 1;
           }
           .date-box { 
             text-align: right;
           }
           .date-label {
-            font-size: 12px;
+            font-size: 10px;
             text-transform: uppercase;
             color: #1B4B8A;
-            font-weight: bold;
+            font-weight: 800;
             display: block;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
           }
           .date-value {
-            font-size: 18px;
-            color: #444;
+            font-size: 16px;
+            color: #333;
+            font-weight: 400;
           }
           h1, h2, h3 { 
             color: #1B4B8A; 
-            border-bottom: 1px solid #eee;
-            padding-bottom: 8px;
-            margin-top: 25px;
+            font-weight: 800;
+            margin-top: 35px;
+            margin-bottom: 15px;
           }
-          h1 { font-size: 26px; text-transform: uppercase; }
-          h2 { font-size: 20px; }
+          h1 { 
+            font-size: 28px; 
+            text-transform: uppercase; 
+            border-bottom: 2px solid #1B4B8A;
+            padding-bottom: 10px;
+          }
+          h2 { 
+            font-size: 22px; 
+            border-left: 8px solid #1B4B8A;
+            padding-left: 15px;
+          }
           
-          /* Titulares Section Styling */
           .titulares-list {
-            background-color: #f8f9fa;
-            border-left: 5px solid #1B4B8A;
-            padding: 20px;
-            margin-bottom: 30px;
+            background-color: #f4f7fa;
+            padding: 30px;
+            margin-bottom: 40px;
+            border-radius: 4px;
           }
-          .titulares-list ul {
-            list-style-type: none;
-            padding: 0;
-          }
-          .titulares-list li {
-            margin-bottom: 12px;
-            font-weight: 500;
-            display: flex;
-          }
-          .titulares-list li::before {
-            content: "•";
-            color: #1B4B8A;
-            font-weight: bold;
-            display: inline-block;
-            width: 1em;
-            margin-left: -1em;
-          }
-
+          
           table { 
             width: 100%; 
             border-collapse: collapse; 
-            margin-top: 15px; 
-            font-size: 13px;
+            margin: 25px 0; 
+            font-size: 12px;
           }
           th, td { 
             border: 1px solid #e0e0e0; 
-            padding: 10px; 
+            padding: 12px; 
             text-align: left; 
           }
           th { 
             background-color: #1B4B8A; 
             color: #ffffff; 
             font-weight: bold;
+            text-transform: uppercase;
           }
-          tr:nth-child(even) { background-color: #fcfcfc; }
+          tr:nth-child(even) { background-color: #f9f9f9; }
           
           .page-break { page-break-after: always; }
           
           a { 
             color: #1B4B8A; 
-            text-decoration: none; 
-            font-weight: bold; 
+            text-decoration: underline; 
           }
           
           .footer { 
@@ -131,26 +122,27 @@ export class PDFService {
             bottom: 0; 
             width: 100%; 
             text-align: center; 
-            font-size: 10px; 
-            color: #777; 
+            font-size: 9px; 
+            color: #666; 
             border-top: 1px solid #eee; 
-            padding-top: 8px;
+            padding: 15px 0;
             background-color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
           }
-          .legal {
-            font-style: italic;
-            margin-top: 4px;
+          .legal-stamp {
+            font-weight: bold;
+            color: #1B4B8A;
+            margin-top: 5px;
           }
         </style>
       </head>
       <body>
         <header>
-          <div class="logo-container">
-            <div class="logo">AVPG</div>
-          </div>
+          <div class="logo">AVPG</div>
           <div class="date-box">
-            <span class="date-label">Resumen de Inteligencia</span>
-            <span class="date-value">15 de Mayo de 2026</span>
+            <span class="date-label">Intelligence Briefing</span>
+            <span class="date-value">Friday, May 15, 2026</span>
           </div>
         </header>
         
@@ -159,9 +151,9 @@ export class PDFService {
         </div>
         
         <div class="footer">
-          <strong>AVPG Intelligence Division</strong> | Contact: <a href="mailto:venezuelagas@gmail.com">venezuelagas@gmail.com</a>
-          <div class="legal">
-            PROPIEDAD DE AVPG. PROHIBIDA SU REPRODUCCIÓN TOTAL O PARCIAL SIN AUTORIZACIÓN.
+          AVPG Intelligence Division | Confidential Industrial Report
+          <div class="legal-stamp">
+            AVPG - Depósito Legal Nro. pp200602DC2401
           </div>
         </div>
       </body>

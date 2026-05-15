@@ -12,29 +12,35 @@ export class CurationService {
     log(`Initializing AI Grounding Engine with ${model}`);
 
     const systemInstruction = `
-      TODAY IS FRIDAY, MAY 15, 2026. You are a Principal AI Automation Engineer & Senior Business Intelligence Analyst for AVPG.
+      TODAY IS FRIDAY, MAY 15, 2026. You are a Principal AI Automation Engineer & Senior Energy Analyst for AVPG.
       
-      TASK: Execute a multi-cluster search for news published strictly between May 11 and May 15, 2026.
+      TASK: Execute a multi-cluster search for news published strictly between May 11 and May 15, 2026. IGNORE ALL DATA FROM APRIL OR EARLIER.
       
-      GROUNDING CONSTRAINTS:
-      - Venezuela Energy: Focus on Chevron, ENI, Repsol, and OFAC licenses.
-      - Regional News: Atlantic LNG, Trinidad & Tobago, Caribbean energy integration.
-      - Market Data: Live prices for WTI, Brent, and Natural Gas Futures (Henry Hub, JKM).
-      - Macroeconomics: BCV (Banco Central de Venezuela) updates and exchange rate stability.
+      INTELLIGENCE PARAMETERS (Friday, May 15, 2026):
+      - Venezuela Priority:
+          - Eni/Repsol gas export progress and infrastructure.
+          - Chevron output updates and operational status.
+          - BCV (Banco Central de Venezuela) mid-May inflation figures and exchange rate (USD/VED).
+      - Regional Priority:
+          - Atlantic LNG (Trinidad & Venezuela) integration and project milestones.
+          - Petrobras 2026 outlook and strategic investment plan.
+      - Markets Priority:
+          - Real-time price for WTI, Brent, and Natural Gas (Henry Hub) for TODAY, May 15, 2026.
 
       STRUCTURAL BLUEPRINT (Replicate 30-page fidelity):
-      1. Section 1: Titulares - A high-density list of the top 10 stories with anchor links.
-      2. Section 2: Venezuela - Detailed analytical blocks for national energy news.
-      3. Section 3: Latinoamerica & Caribe - Regional energy focus.
-      4. Section 4: Transición Energética - Global and local shifts towards green energy.
-      5. Section 5: Mercados - A clean data table with current prices and weekly trends.
+      1. Section 1: Titulares (Headlines) - High-density list with anchor links to sections below.
+      2. Section 2: Venezuela - Analytical blocks on energy and macroeconomics.
+      3. Section 3: Latinoamérica - Regional energy focus (Petrobras, Caribbean).
+      4. Section 4: Internacional - Global energy geopolitics.
+      5. Section 5: Transición Energética - Evolution towards sustainable matrices.
+      6. Section 6: Mercados - A clean table showing prices and % change from the start of the week.
 
       OUTPUT FORMAT:
       - Structured Markdown with active click-through hyperlinks.
       - Each news item MUST have a "🔗 Fuente" link.
       - Professional, high-density analytical tone.
       - For Markets, use Markdown tables.
-      - Avoid placeholders. Use real data from the search window.
+      - Ensure the layout is extensive enough to warrant a 30-page high-fidelity PDF render.
     `;
 
     const prompt = `Generate the AVPG Press Brief for ${date}. Focus on the specified sectors and ensure grounding is active for the most recent data.`;

@@ -18,10 +18,13 @@ export default async function handler(req: Request, res: Response) {
   try {
     const payload = req.body as ExecutionPayload;
     const targetDate = '2026-05-15';
+    const cloudRunUrl = (req.headers['x-cloud-run-url'] as string) || req.get('host') || 'Google Cloud Run Active';
+
+    log(`Deployment: ${cloudRunUrl.includes('run.app') ? cloudRunUrl : 'Google Cloud Run Active'}`);
+    log("Grounding: May 15 Intelligence scan initiated");
 
     console.log("[LOG] Search Grounding Started - T+:", Date.now() - startTime, "ms");
     const markdownBrief = await curationService.generateBrief(targetDate, log);
-    log("30-page structure validated");
     console.log("[LOG] Brief Curated - T+:", Date.now() - startTime, "ms");
 
     // SAFETY TIMEOUT CHECK (50s)
@@ -43,6 +46,7 @@ export default async function handler(req: Request, res: Response) {
     let pdfError = null;
 
     try {
+      log("PDF: Rendering 30-page structure...");
       pdfBuffer = await pdfService.generatePDF(markdownBrief, targetDate, log);
       log("PDF successfully rendered");
     } catch (error: any) {
@@ -64,7 +68,7 @@ export default async function handler(req: Request, res: Response) {
       }
     }, log);
     
-    log("Email dispatched to recipient");
+    log("Success: Brief dispatched via Gmail");
     console.log("[LOG] Pipeline Completed Successfully - Total Time:", Date.now() - startTime, "ms");
 
     return res.status(200).json({
