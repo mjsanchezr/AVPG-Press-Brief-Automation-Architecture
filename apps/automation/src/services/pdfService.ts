@@ -1,13 +1,14 @@
 import { marked } from 'marked';
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
+import { Readable } from 'stream';
 
 /**
  * AVPG PDF SERVICE (Production Optimized)
  * Uses Puppeteer + Chromium for stable high-fidelity rendering in Vercel Serverless environments.
  */
 
-export async function generateBriefPDF(markdown: string): Promise<Buffer> {
+export async function generateBriefPDF(markdown: string): Promise<Buffer | Readable> {
     // Configure marked for HTML generation
     const htmlBody = await marked(markdown);
 
@@ -141,7 +142,7 @@ export async function generateBriefPDF(markdown: string): Promise<Buffer> {
     try {
         console.log("[PDF] Launching browserless chromium instance...");
         browser = await puppeteer.launch({
-            args: chromium.args,
+            args: [...chromium.args, '--disable-dev-shm-usage', '--no-sandbox'],
             executablePath: await chromium.executablePath(),
             headless: true,
         });
@@ -161,7 +162,15 @@ export async function generateBriefPDF(markdown: string): Promise<Buffer> {
             printBackground: true
         });
 
-        return Buffer.from(pdf);
+        const buffer = Buffer.from(pdf);
+        
+        // Vercel Payload Limit Guardrail (4.5MB)
+        if (buffer.length > 4.5 * 1024 * 1024) {
+            console.warn(`[PDF] Large PDF detected (${(buffer.length / 1024 / 1024).toFixed(2)}MB). Implementing stream-based response.`);
+            return Readable.from(buffer);
+        }
+
+        return buffer;
     } catch (error) {
         console.error("[PDF] Service Error:", error);
         throw error;
@@ -171,4 +180,3 @@ export async function generateBriefPDF(markdown: string): Promise<Buffer> {
         }
     }
 }
-

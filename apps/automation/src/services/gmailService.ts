@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { Readable } from 'stream';
 import { BriefPayload, SmtpCredentials, DistributionConfig } from '../../../../shared/types';
 import { generateBriefPDF } from './pdfService';
 
@@ -10,7 +11,7 @@ export async function sendBriefEmailDynamically(
   payload: BriefPayload | string, 
   auth: SmtpCredentials, 
   config: DistributionConfig,
-  pdfBuffer?: Buffer
+  pdfBuffer?: Buffer | Readable
 ): Promise<boolean> {
   try {
     const transporter = nodemailer.createTransport({

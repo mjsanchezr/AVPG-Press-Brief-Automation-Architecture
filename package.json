@@ -9,7 +9,8 @@
   "scripts": {
     "build": "npm run build --workspaces || tsc -b",
     "dev": "npm run dev --workspaces",
-    "deploy": "npx vercel --prod"
+    "deploy": "npx vercel --prod",
+    "postinstall": "puppeteer install"
   },
   "dependencies": {
     "@google/genai": "^2.2.0",
