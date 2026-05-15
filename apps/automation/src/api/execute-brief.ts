@@ -1,13 +1,15 @@
-import { VercelRequest, VercelResponse } from '@vercel/node';
+import { Request, Response } from 'express';
 import { ExecutionPayload } from '../../../../shared/types';
-import { fetchAndCurateLiveBrief, BRIEF_SYSTEM_INSTRUCTION } from '../services/curationService';
-import { sendBriefEmailDynamically } from '../services/gmailService';
-import { generateBriefPDF } from '../services/pdfService';
+import { curationService } from '../services/curationService';
+import { gmailService } from '../services/gmailService';
+import { pdfService } from '../services/pdfService';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: Request, res: Response) {
   const startTime = Date.now();
   const trace: string[] = [];
-  trace.push("Execution Initiated");
+  const log = (msg: string) => trace.push(`[LOG] ${msg}`);
+  
+  trace.push("Execution Initiated (Legacy Wrapper)");
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -15,42 +17,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const payload = req.body as ExecutionPayload;
-
-    if (!payload?.credentials?.senderEmail || 
-        !payload?.credentials?.appPassword || 
-        !payload?.config?.recipientEmail) {
-      return res.status(400).json({ error: 'Missing required configuration parameters (senderEmail, appPassword, recipientEmail)', trace });
-    }
-
-    const apiKey = payload.credentials.geminiApiKey || process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return res.status(400).json({ error: 'Missing Gemini API Key.', trace });
-    }
-
-    const promptText = `
-SYSTEM ROLE: ${BRIEF_SYSTEM_INSTRUCTION}
-
-IMPORTANT TEMPORAL CONSTRAINTS:
-- TODAY IS FRIDAY, MAY 15, 2026.
-- SEARCH FOR NEWS PUBLISHED IN THE LAST 72 HOURS (MAY 12 - MAY 15, 2026).
-- ABSOLUTELY DO NOT RETURN ARTICLES FROM APRIL 2026 OR EARLIER.
-
-SEARCH CLUSTERS: 
-- "Venezuela news May 15 2026"
-- "Chevron ENI Repsol Venezuela May 2026"
-- "Atlantic LNG Shell Trinidad Venezuela May 2026"
-- "WTI Brent oil prices May 15 2026"
-- "BCV inflation April May 2026"
-
-INSTRUCTIONS:
-1. Conduct a deep web search for the clusters above.
-2. Generate the brief in Markdown format, following the AVPG Model structure exactly.
-3. Ensure all source links are fully qualified and active.
-`;
+    const targetDate = '2026-05-15';
 
     console.log("[LOG] Search Grounding Started - T+:", Date.now() - startTime, "ms");
-    trace.push("Grounding finished");
-    const markdownBrief = await fetchAndCurateLiveBrief(apiKey, promptText);
+    const markdownBrief = await curationService.generateBrief(targetDate, log);
     trace.push("Brief curated");
     console.log("[LOG] Brief Curated - T+:", Date.now() - startTime, "ms");
 
@@ -74,7 +44,7 @@ INSTRUCTIONS:
     let pdfError = null;
 
     try {
-      pdfBuffer = await generateBriefPDF(markdownBrief);
+      pdfBuffer = await pdfService.generatePDF(markdownBrief, targetDate, log);
       trace.push("PDF success");
     } catch (error: any) {
       pdfError = error.message;
@@ -85,12 +55,16 @@ INSTRUCTIONS:
     console.log("[LOG] Email Dispatch Started - T+:", Date.now() - startTime, "ms");
     trace.push("Email attempt started");
     
-    const emailSent = await sendBriefEmailDynamically(
-      markdownBrief, 
-      payload.credentials, 
-      payload.config, 
-      pdfBuffer || undefined
-    );
+    await gmailService.sendBrief({
+      markdown: markdownBrief,
+      pdfBuffer: pdfBuffer!,
+      date: targetDate,
+      config: {
+        smtpUser: payload.credentials.senderEmail,
+        smtpPass: payload.credentials.appPassword,
+        recipientEmail: payload.config.recipientEmail
+      }
+    }, log);
     
     trace.push("Email dispatch finished");
     console.log("[LOG] Pipeline Completed Successfully - Total Time:", Date.now() - startTime, "ms");
@@ -98,7 +72,6 @@ INSTRUCTIONS:
     return res.status(200).json({
       success: true,
       timestamp: new Date().toISOString(),
-      emailSent,
       pdfStatus: pdfBuffer ? "Generated" : `Failed: ${pdfError}`,
       trace,
       data: markdownBrief

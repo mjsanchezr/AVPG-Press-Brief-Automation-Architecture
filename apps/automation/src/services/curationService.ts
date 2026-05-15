@@ -1,78 +1,63 @@
 import { GoogleGenAI } from '@google/genai';
 
-/**
- * PRODUCTION-GRADE INTELLIGENCE AGENT
- * This service leverages Gemini 2.5 Flash with Google Search Grounding to perform
- * real-time macro discovery and curation for the AVPG press brief.
- */
+export class CurationService {
+  private ai: GoogleGenAI;
 
-export const BRIEF_SYSTEM_INSTRUCTION = `
-Role: Senior Business Intelligence Analyst for AVPG (Grounded Intelligence Analyst).
-Temporal Guardrail: TODAY is May 15, 2026. You MUST ONLY use news published between May 11, 2026, and May 15, 2026. ABSOLUTELY IGNORE all data from April 2026 or earlier. If a source does not have a date in May 2026, discard it.
+  constructor() {
+    this.ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY || '' });
+  }
 
-Deduplication & Synthesis: Perform cross-source verification. If multiple sources report the same event, synthesize them into a single high-density entry.
+  async generateBrief(date: string, log: (msg: string) => void): Promise<string> {
+    const model = 'gemini-2.0-flash';
+    log(`Initializing AI Grounding Engine with ${model}`);
 
-Structure Blueprint (Match Model Exactly):
+    const systemInstruction = `
+      TODAY IS FRIDAY, MAY 15, 2026. You are a Senior BI Analyst for AVPG. 
+      Execute a multi-cluster search for news published strictly between May 11 and May 15, 2026. 
+      Ignore all data from April. 
+      Replicate the 30-page model structure: 
+      1. Overview (Titulares)
+      2. Venezuela
+      3. Oil & Gas (Focus on: Shell, Eni, Chevron, OFAC)
+      4. LatAm
+      5. International
+      6. Transition (Energética)
+      7. Markets (WTI, Brent, Gas Futures: Henry Hub, JKM, TTF)
 
-1. PAGE 1: OVERVIEW
-- Header: "RESUMEN DE PRENSA"
-- Date: "Viernes, 15 de mayo de 2026"
-- Section: "TITULARES" (List all headlines grouped by the categories below).
+      Return structured Markdown with active click-through hyperlinks. 
+      Ensure each news item has a "🔗 Fuente" link.
+      Use professional, high-density analytical tone.
+      For Markets, use Markdown tables.
+    `;
 
-2. CORE SECTIONS:
-- VENEZUELA
-- LATINOAMÉRICA Y EL CARIBE
-- INTERNACIONALES
-- TRANSICIÓN ENERGÉTICA
-- MERCADOS
+    const prompt = `Generate the AVPG Press Brief for ${date}. Focus on the specified sectors and ensure grounding is active for the most recent data.`;
 
-3. CONTENT BLOCKS (For each headline):
-- 📌 [Titular]
-- 2-3 paragraphs of high-density analytical summary focusing on business implications.
-- 🔗 Fuente: [Active Hyperlink]
-- [Volver a Titulares](#titulares) (Internal navigation link)
-
-4. MARKET DATA (Final Section):
-Generate a Markdown table for:
-- WTI, Brent, Cesta OPEP.
-- Gas Futures: Henry Hub, JKM, TTF.
-Use real-time search data for May 15, 2026.
-`;
-
-export async function fetchAndCurateLiveBrief(apiKey: string, promptText: string): Promise<string> {
-  try {
-    // Instantiated inside the execution scope to ensure cold start safety
-    const ai = new GoogleGenAI({ apiKey: apiKey });
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: promptText,
-      config: {
-        // Declared explicitly matching the new configuration types contract
+    try {
+      const result = await this.ai.models.generateContent({
+        model: model,
+        systemInstruction: systemInstruction,
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
         tools: [{ googleSearch: {} }]
-      }
-    });
+      } as any);
 
-    return response.text || '';
-  } catch (error: any) {
-    console.error("Curation Service failure path:", error);
-    throw error;
+      const markdown = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      
+      if (!markdown) {
+        throw new Error('AI Engine returned empty content');
+      }
+
+      log('Search Grounding successful. Markdown synthesized.');
+      return markdown;
+    } catch (error: any) {
+      log(`AI Grounding Error: ${error.message}`);
+      throw error;
+    }
   }
 }
 
-/**
- * Legacy support for the previous engine interface if needed, 
- * but now redirected to the live grounded agent.
- */
-export async function processBriefEngine(rawFeeds: string[]): Promise<any> {
-  console.warn("processBriefEngine is deprecated. Use fetchAndCurateLiveBrief for live grounding.");
-  return {
-    titleBlock: "DEPRECATED - USE LIVE BRIEF",
-    titularDelDia: "The system has transitioned to live Google Search Grounding.",
-    oilGas: [],
-    economiaInversion: [],
-    contextoInternacional: [],
-    paraTenerEnCuenta: []
-  };
-}
+export const curationService = new CurationService();
 
+export async function fetchAndCurateLiveBrief(feeds: string[]): Promise<string> {
+  const targetDate = '2026-05-15';
+  return curationService.generateBrief(targetDate, (msg) => console.log(`[CurationService] ${msg}`));
+}

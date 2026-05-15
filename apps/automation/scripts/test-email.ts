@@ -1,5 +1,5 @@
 import * as dotenv from 'dotenv';
-import { processBriefEngine } from '../src/services/curationService';
+import { fetchAndCurateLiveBrief } from '../src/services/curationService';
 import { sendBriefEmailDynamically } from '../src/services/gmailService';
 import { SmtpCredentials, DistributionConfig } from '../../../shared/types';
 
@@ -10,7 +10,7 @@ async function runTest() {
 
   try {
     console.log("⏳ Generating mock brief payload via LLM Engine...");
-    const payload = await processBriefEngine(["Simulation feed representing Venezuelan macro markers..."]);
+    const payload = await fetchAndCurateLiveBrief(["Simulation feed representing Venezuelan macro markers..."]);
     
     const adminEmail = process.env.ADMIN_EMAIL || 'test@example.com';
     

@@ -1,208 +1,71 @@
 import { marked } from 'marked';
-import puppeteer from 'puppeteer-core';
-import chromium from '@sparticuz/chromium';
-import { Readable } from 'stream';
+import puppeteer from 'puppeteer';
 
-/**
- * AVPG PDF SERVICE (Production Optimized)
- * Uses Puppeteer + Chromium for stable high-fidelity rendering in Vercel Serverless environments.
- */
-
-export async function generateBriefPDF(markdown: string): Promise<Buffer | Readable> {
-    // Configure marked for HTML generation
+export class PDFService {
+  async generatePDF(markdown: string, date: string, log: (msg: string) => void): Promise<Buffer> {
+    log('Generating HTML template from Markdown');
     const htmlBody = await marked(markdown);
 
     const htmlContent = `
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
+      <!DOCTYPE html>
+      <html>
+      <head>
         <meta charset="UTF-8">
         <style>
-            @page {
-                size: A4;
-                margin: 20mm;
-            }
-            body {
-                font-family: 'Helvetica', 'Arial', sans-serif;
-                color: #2c3e50;
-                line-height: 1.5;
-                margin: 0;
-                padding: 0;
-                font-size: 11pt;
-            }
-            .container {
-                width: 100%;
-            }
-            header {
-                display: flex;
-                justify-content: space-between;
-                align-items: flex-end;
-                border-bottom: 3px solid #1B4B8A;
-                padding-bottom: 10px;
-                margin-bottom: 20px;
-            }
-            .logo-text {
-                font-size: 28pt;
-                font-weight: 900;
-                color: #1B4B8A;
-                letter-spacing: -1px;
-            }
-            .brief-title {
-                font-size: 14pt;
-                color: #7f8c8d;
-                text-transform: uppercase;
-                font-weight: bold;
-            }
-            h1, h2, h3 {
-                color: #1B4B8A;
-                text-transform: uppercase;
-            }
-            h1 { font-size: 20pt; margin-top: 30px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
-            h2 { font-size: 16pt; margin-top: 25px; }
-            h3 { font-size: 14pt; margin-top: 20px; }
-            
-            table {
-                width: 100%;
-                border-collapse: collapse;
-                margin: 20px 0;
-                font-size: 10pt;
-            }
-            th {
-                background-color: #1B4B8A;
-                color: white;
-                text-align: left;
-                padding: 10px;
-                text-transform: uppercase;
-            }
-            td {
-                border-bottom: 1px solid #ecf0f1;
-                padding: 10px;
-            }
-            tr:nth-child(even) {
-                background-color: #f9f9f9;
-            }
-
-            p {
-                margin-bottom: 15px;
-                text-align: justify;
-            }
-            a {
-                color: #1B4B8A;
-                text-decoration: none;
-                font-weight: bold;
-            }
-            .footer {
-                position: fixed;
-                bottom: -10mm;
-                left: 0;
-                right: 0;
-                height: 10mm;
-                text-align: center;
-                font-size: 8pt;
-                color: #bdc3c7;
-                border-top: 1px solid #eee;
-                padding-top: 5px;
-            }
-            .page-break {
-                page-break-before: always;
-            }
-            ul {
-                list-style-type: none;
-                padding-left: 0;
-            }
-            ul li {
-                padding: 5px 0;
-                border-bottom: 1px dashed #eee;
-            }
-            ul li:before {
-                content: "• ";
-                color: #1B4B8A;
-                font-weight: bold;
-            }
+          @page { size: A4; margin: 20mm; }
+          body { font-family: 'Helvetica', Arial, sans-serif; color: #333; line-height: 1.6; margin: 0; padding: 0; }
+          header { border-bottom: 4px solid #1B4B8A; padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: baseline; }
+          .logo { font-size: 32px; font-weight: bold; color: #1B4B8A; }
+          .date { font-size: 16px; color: #666; }
+          h1, h2, h3 { color: #1B4B8A; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #f2f2f2; color: #1B4B8A; }
+          .page-break { page-break-after: always; }
+          a { color: #1B4B8A; text-decoration: none; font-weight: bold; }
+          .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 10px; color: #999; border-top: 1px solid #eee; padding-top: 5px; }
         </style>
-    </head>
-    <body>
-        <div class="container">
-            <header>
-                <div class="logo-text">AVPG</div>
-                <div class="brief-title">Resumen de Prensa</div>
-            </header>
-            <div class="content">
-                ${htmlBody}
-            </div>
+      </head>
+      <body>
+        <header>
+          <div class="logo">AVPG</div>
+          <div class="date">Resumen de Prensa — ${date}</div>
+        </header>
+        <div class="content">
+          ${htmlBody}
         </div>
         <div class="footer">
-            AVPG Press Brief Automation — Grounded Intelligence Delivery — May 15, 2026
+          Confidencial — AVPG Intelligence Division
         </div>
-    </body>
-    </html>
+      </body>
+      </html>
     `;
 
-    const htmlSizeBytes = Buffer.byteLength(htmlContent, 'utf8');
-    console.log(`[PDF] HTML size: ${(htmlSizeBytes / 1024).toFixed(2)} KB`);
+    log('Launching Puppeteer (Chromium)');
+    const browser = await puppeteer.launch({
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+    });
 
-    // Memory Guardrail: HTML shouldn't exceed 10MB to stay well within 1024MB Vercel limit
-    if (htmlSizeBytes > 10 * 1024 * 1024) {
-        throw new Error(`HTML content too large for rendering engine (${(htmlSizeBytes / 1024 / 1024).toFixed(2)}MB)`);
-    }
-
-    let browser;
     try {
-        console.log("[PDF] Launching browserless chromium instance...");
-        browser = await puppeteer.launch({
-            args: chromium.args,
-            defaultViewport: chromium.defaultViewport,
-            executablePath: await chromium.executablePath(),
-            headless: chromium.headless,
-            ignoreHTTPSErrors: true,
-        });
+      const page = await browser.newPage();
+      await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+      
+      log('Creating PDF Buffer');
+      const pdf = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: { top: '20mm', right: '20mm', bottom: '20mm', left: '20mm' }
+      });
 
-        const page = await browser.newPage();
-        
-        // Set a global timeout for page operations
-        page.setDefaultTimeout(20000);
-
-        await page.setContent(htmlContent, { 
-            waitUntil: 'domcontentloaded',
-            timeout: 20000 
-        });
-        
-        console.log("[PDF] Rendering high-fidelity PDF buffer (20s limit)...");
-        
-        // Wrap page.pdf in a timeout promise since it doesn't have a native timeout option
-        const pdfPromise = page.pdf({
-            format: 'A4',
-            margin: {
-                top: '20mm',
-                right: '20mm',
-                bottom: '25mm',
-                left: '20mm'
-            },
-            printBackground: true
-        });
-
-        const timeoutPromise = new Promise<never>((_, reject) => 
-            setTimeout(() => reject(new Error('PDF generation timed out after 20s')), 20000)
-        );
-
-        const pdf = await Promise.race([pdfPromise, timeoutPromise]) as Uint8Array;
-
-        const buffer = Buffer.from(pdf);
-        
-        // Vercel Payload Limit Guardrail (4.5MB)
-        if (buffer.length > 4.5 * 1024 * 1024) {
-            console.warn(`[PDF] Large PDF detected (${(buffer.length / 1024 / 1024).toFixed(2)}MB). Implementing stream-based response.`);
-            return Readable.from(buffer);
-        }
-
-        return buffer;
+      return Buffer.from(pdf);
     } catch (error: any) {
-        console.error("[PDF] Service Error:", error.message);
-        throw error;
+      log(`PDF Generation Error: ${error.message}`);
+      throw error;
     } finally {
-        if (browser) {
-            console.log("[PDF] Closing browser instance...");
-            await browser.close();
-        }
+      await browser.close();
     }
+  }
 }
+
+export const pdfService = new PDFService();

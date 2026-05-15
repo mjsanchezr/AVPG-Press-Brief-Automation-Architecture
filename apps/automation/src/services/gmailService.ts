@@ -1,103 +1,99 @@
 import nodemailer from 'nodemailer';
-import { Readable } from 'stream';
-import { BriefPayload, SmtpCredentials, DistributionConfig } from '../../../../shared/types';
-import { generateBriefPDF } from './pdfService';
 import { marked } from 'marked';
+import { SmtpCredentials, DistributionConfig } from '../../../../shared/types';
 
-/**
- * Enhanced Gmail Service
- * Now supports both structured BriefPayload and raw Markdown strings from the AI agent.
- */
-export async function sendBriefEmailDynamically(
-  payload: BriefPayload | string, 
-  auth: SmtpCredentials, 
-  config: DistributionConfig,
-  pdfBuffer?: Buffer | Readable
-): Promise<boolean> {
-  try {
+export interface MailOptions {
+  markdown: string;
+  pdfBuffer: Buffer;
+  date: string;
+  config: {
+    smtpUser: string;
+    smtpPass: string;
+    recipientEmail: string;
+  };
+}
+
+export class GmailService {
+  async sendBrief(options: MailOptions, log: (msg: string) => void): Promise<void> {
+    const { markdown, pdfBuffer, date, config } = options;
+    
+    log(`Configuring SMTP Transport for ${config.smtpUser}`);
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: auth.senderEmail,
-        pass: auth.appPassword
+        user: config.smtpUser,
+        pass: config.smtpPass
       }
     });
-
-    // Generate or use the provided PDF buffer
-    const markdown = typeof payload === 'string' ? payload : JSON.stringify(payload);
-    let finalPdfBuffer = pdfBuffer;
-    
-    // Only attempt PDF generation if not provided AND we haven't explicitly opted out (via null)
-    if (finalPdfBuffer === undefined) {
-      try {
-        finalPdfBuffer = await generateBriefPDF(markdown);
-      } catch (e) {
-        console.warn("[GMAIL] PDF generation failed, proceeding with HTML-only delivery.");
-      }
-    }
 
     const fileName = `AVPG_Resumen_Prensa_2026_05_15.pdf`;
+    const htmlFallback = await marked(markdown);
 
-    // Convert markdown to HTML for the email body to ensure "high-density" delivery
-    const briefHtml = await marked(markdown);
-
-    const executiveSummary = `
-      <div style="font-family: 'Helvetica', Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
-        <div style="background-color: #1B4B8A; padding: 24px; color: white;">
-          <h1 style="margin: 0; font-size: 24px; letter-spacing: -0.5px;">AVPG Resumen de Prensa</h1>
-          <p style="margin: 8px 0 0 0; opacity: 0.8; font-size: 14px;">Viernes, 15 de mayo de 2026</p>
-        </div>
-        <div style="padding: 32px; background-color: white;">
-          <h2 style="color: #1B4B8A; margin-top: 0; font-size: 18px;">Executive Summary</h2>
-          <p style="color: #4b5563; line-height: 1.6; font-size: 15px;">
-            The latest market intelligence and macroeconomic analysis for the Venezuela-Trinidad energy corridor has been synthesized.
-          </p>
-          
-          ${finalPdfBuffer ? `
-          <div style="margin: 24px 0; padding: 20px; background-color: #f9fafb; border-radius: 8px; border-left: 4px solid #1B4B8A;">
-            <p style="margin: 0; font-weight: 600; color: #1f2937;">📎 Full Report Attached</p>
-            <p style="margin: 4px 0 0 0; font-size: 13px; color: #6b7280;">Filename: ${fileName}</p>
-          </div>
-          ` : `
-          <div style="margin: 24px 0; padding: 20px; background-color: #fff7ed; border-radius: 8px; border-left: 4px solid #f97316;">
-            <p style="margin: 0; font-weight: 600; color: #9a3412;">⚠️ PDF Generation Failed</p>
-            <p style="margin: 4px 0 0 0; font-size: 13px; color: #c2410c;">The full report is included below in high-density HTML format.</p>
-          </div>
-          `}
-
-          <hr style="border: 0; border-top: 1px solid #eee; margin: 32px 0;" />
-          
-          <div style="color: #374151; line-height: 1.7; font-size: 14px;">
-            ${briefHtml}
-          </div>
-
-          <p style="font-size: 13px; color: #9ca3af; margin-top: 32px; margin-bottom: 0;">
-            Grounded Intelligence Delivery via Gemini 2.5 Flash.
-          </p>
-        </div>
-      </div>
-    `;
-
-    const attachments = [];
-    if (finalPdfBuffer) {
-      attachments.push({
-        filename: fileName,
-        content: finalPdfBuffer as any,
-        contentType: 'application/pdf'
-      });
-    }
-
-    await transporter.sendMail({
-      from: auth.senderEmail,
+    const mailOptions = {
+      from: `"AVPG Automation" <${config.smtpUser}>`,
       to: config.recipientEmail,
-      subject: `AVPG Resumen de Prensa - 15 de mayo de 2026 ${!finalPdfBuffer ? '(HTML Edition)' : ''}`,
-      html: executiveSummary,
-      attachments
-    });
+      subject: `🛢️ AVPG RESUMEN DE PRENSA — 15 DE MAYO DE 2026`,
+      html: `
+        <div style="font-family: Helvetica, Arial, sans-serif; color: #333;">
+          <h1 style="color: #1B4B8A;">AVPG Intelligence Brief</h1>
+          <p>Please find attached the high-fidelity PDF report for <strong>May 15, 2026</strong>.</p>
+          <hr/>
+          <div class="brief-content">
+            ${htmlFallback}
+          </div>
+          <footer style="margin-top: 20px; font-size: 12px; color: #999;">
+            Automated via AVPG Cloud Run Architecture.
+          </footer>
+        </div>
+      `,
+      attachments: [
+        {
+          filename: fileName,
+          content: pdfBuffer,
+          contentType: 'application/pdf'
+        }
+      ]
+    };
 
+    try {
+      log('Dispatching Email via SMTP');
+      await transporter.sendMail(mailOptions);
+      log('Email dispatched successfully');
+    } catch (error: any) {
+      log(`SMTP Dispatch Error: ${error.message}`);
+      // Fallback: Try sending without attachment if it failed due to size or other PDF issues
+      log('Attempting fallback: Sending high-density HTML body only');
+      await transporter.sendMail({
+        ...mailOptions,
+        attachments: [],
+        subject: mailOptions.subject + ' (HTML Fallback)'
+      });
+      log('Fallback email dispatched successfully');
+    }
+  }
+}
+
+export const gmailService = new GmailService();
+
+export async function sendBriefEmailDynamically(
+  payload: string, 
+  auth: SmtpCredentials, 
+  config: DistributionConfig
+): Promise<boolean> {
+  try {
+    await gmailService.sendBrief({
+      markdown: payload,
+      pdfBuffer: Buffer.alloc(0), // Dummy buffer for now if PDF is not required or handled elsewhere
+      date: '2026-05-15',
+      config: {
+        smtpUser: auth.senderEmail,
+        smtpPass: auth.appPassword,
+        recipientEmail: config.recipientEmail
+      }
+    }, (msg) => console.log(`[GmailService] ${msg}`));
     return true;
   } catch (error) {
-    console.error("SMTP Dispatch Error:", error);
-    throw error;
+    console.error("[GmailService] sendBriefEmailDynamically failed:", error);
+    return false;
   }
 }

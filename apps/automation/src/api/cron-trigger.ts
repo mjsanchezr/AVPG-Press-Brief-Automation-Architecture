@@ -1,16 +1,16 @@
-import { VercelRequest, VercelResponse } from '@vercel/node';
+import { Request, Response } from 'express';
 import { fetchRawFeeds } from '../services/aggregatorService';
-import { processBriefEngine } from '../services/curationService';
+import { fetchAndCurateLiveBrief } from '../services/curationService';
 import { sendBriefEmailDynamically } from '../services/gmailService';
 import { SmtpCredentials, DistributionConfig } from '../../../../shared/types';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: Request, res: Response) {
   try {
     console.log("[CRON] Initiating ingestion sequence...");
     const rawFeeds = await fetchRawFeeds();
     
     console.log(`[CRON] Fetched ${rawFeeds.length} items. Invoking curation engine...`);
-    const briefPayload = await processBriefEngine(rawFeeds);
+    const briefPayload = await fetchAndCurateLiveBrief(rawFeeds);
 
     const targetEmail = process.env.ADMIN_EMAIL || 'admin@example.com';
     const dispatchEnabled = process.env.ENABLE_EMAIL_DISPATCH === 'true';

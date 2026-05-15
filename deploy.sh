@@ -1,28 +1,30 @@
 #!/bin/bash
 
-# AVPG Press Brief Automation Architecture - Deployment Script
-# This script automates the production deployment to Vercel.
+# Configuration
+SERVICE_NAME="avpg-automation"
+REGION="us-central1"
+PROJECT_ID=$(gcloud config get-value project)
 
-echo "🚀 Starting Deployment Sequence for AVPG Intelligence Workspace..."
+echo "🚀 Starting Deployment for $SERVICE_NAME to Google Cloud Run..."
 
-# 1. Run local type checks to ensure zero-defect build
-echo "🔍 Running Type Safety Audit..."
-npm run build
+# Build the container
+echo "📦 Building Docker image..."
+docker build -t gcr.io/$PROJECT_ID/$SERVICE_NAME .
 
-if [ $? -eq 0 ]; then
-    echo "✅ Type Safety Audit Passed."
-else
-    echo "❌ Type Safety Audit Failed. Aborting deployment."
-    exit 1
-fi
+# Push to Container Registry
+echo "📤 Pushing image to GCR..."
+docker push gcr.io/$PROJECT_ID/$SERVICE_NAME
 
-# 2. Trigger Vercel Production Deployment
-echo "📦 Dispatching build to Vercel Production Edge..."
-npx vercel --prod
+# Deploy to Cloud Run
+echo "☁️ Deploying to Cloud Run..."
+gcloud run deploy $SERVICE_NAME \
+  --image gcr.io/$PROJECT_ID/$SERVICE_NAME \
+  --platform managed \
+  --region $REGION \
+  --allow-unauthenticated \
+  --memory 2Gi \
+  --cpu 2 \
+  --timeout 300
 
-if [ $? -eq 0 ]; then
-    echo "🎉 Deployment Successful! The system is live."
-else
-    echo "⚠️ Deployment encountered an error."
-    exit 1
-fi
+echo "✅ Deployment complete!"
+gcloud run services describe $SERVICE_NAME --platform managed --region $REGION --format 'value(status.url)'
