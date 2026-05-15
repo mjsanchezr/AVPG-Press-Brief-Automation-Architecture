@@ -33,12 +33,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     const promptText = `
-${BRIEF_SYSTEM_INSTRUCTION}
+SYSTEM ROLE: ${BRIEF_SYSTEM_INSTRUCTION}
 
-Generate the live AVPG press brief for today, ${currentDate}. 
-Use Google Search to find the latest real-time news for May 2026 across the specified sectors. 
-Ensure all links are active and discovered during the search pass.
-Follow the Playbook Layout exactly.`;
+EXECUTION DATE: Friday, May 15, 2026.
+SEARCH CLUSTERS: 
+- "Venezuela news May 15 2026"
+- "Chevron ENI Repsol Venezuela May 2026"
+- "Atlantic LNG Shell Trinidad Venezuela May 2026"
+- "WTI Brent oil prices May 15 2026"
+- "BCV inflation April May 2026"
+
+INSTRUCTIONS:
+1. Conduct a deep web search for the clusters above.
+2. Filter for news ONLY from the current week (May 11 - May 15, 2026).
+3. Generate the brief in Markdown format, following the AVPG Model structure exactly.
+4. Ensure all source links are fully qualified and active.
+`;
 
     const markdownBrief = await fetchAndCurateLiveBrief(apiKey, promptText);
 

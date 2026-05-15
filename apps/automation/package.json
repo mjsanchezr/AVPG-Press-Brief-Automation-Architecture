@@ -9,9 +9,12 @@
   "dependencies": {
     "@google/genai": "^2.2.0",
     "dotenv": "^16.4.5",
+    "html-pdf-node": "^1.0.8",
+    "marked": "^18.0.3",
     "nodemailer": "^6.9.0"
   },
   "devDependencies": {
+    "@types/marked": "^5.0.2",
     "@types/node": "^20.12.11",
     "@types/nodemailer": "^6.4.0",
     "@vercel/node": "^3.1.2",

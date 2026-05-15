@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { BriefPayload, SmtpCredentials, DistributionConfig } from '../../../../shared/types';
+import { generateBriefPDF } from './pdfService';
 
 /**
  * Enhanced Gmail Service
@@ -19,57 +20,45 @@ export async function sendBriefEmailDynamically(
       }
     });
 
-    let htmlBody = '';
-    let subject = '';
+    // Generate the high-fidelity PDF
+    const markdown = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    const pdfBuffer = await generateBriefPDF(markdown);
+    const fileName = `AVPG_Resumen_Prensa_2026_05_15.pdf`;
 
-    if (typeof payload === 'string') {
-      // Handle raw Markdown from Gemini
-      subject = payload.split('\n')[0].replace(/[#*]/g, '').trim() || "AVPG Live Brief Update";
-      
-      // Simple conversion of Markdown to clean HTML for the email
-      // We wrap it in a professional container with Inter font
-      const formattedText = payload
-        .replace(/^# (.*$)/gim, '<h1 style="font-size: 20px; font-weight: 700; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 20px;">$1</h1>')
-        .replace(/^## (.*$)/gim, '<h2 style="font-size: 16px; font-weight: 600; color: #111827; text-transform: uppercase; margin-top: 24px; margin-bottom: 12px;">$1</h2>')
-        .replace(/^\* (.*$)/gim, '<li style="margin-bottom: 8px;">$1</li>')
-        .replace(/^📌 (.*$)/gim, '<div style="margin-bottom: 15px; font-size: 14px;"><strong>📌 $1</strong></div>')
-        .replace(/^🔗 (.*$)/gim, '<div style="margin-bottom: 20px; font-size: 13px; color: #2563eb;">🔗 $1</div>')
-        .replace(/\n/g, '<br>');
-
-      htmlBody = `
-        <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; background-color: #f8f9fa; padding: 20px; color: #111827; line-height: 1.6;">
-          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-            ${formattedText}
-          </div>
-          <div style="text-align: center; margin-top: 20px; font-size: 12px; color: #9ca3af;">
-            Sent via AVPG Press Brief Automation Architecture • ${new Date().toLocaleDateString()}
-          </div>
+    const executiveSummary = `
+      <div style="font-family: 'Helvetica', Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
+        <div style="background-color: #1B4B8A; padding: 24px; color: white;">
+          <h1 style="margin: 0; font-size: 24px; letter-spacing: -0.5px;">AVPG Resumen de Prensa</h1>
+          <p style="margin: 8px 0 0 0; opacity: 0.8; font-size: 14px;">Viernes, 15 de mayo de 2026</p>
         </div>
-      `;
-    } else {
-      // Legacy structured payload support
-      subject = payload.titleBlock;
-      htmlBody = `
-        <div style="font-family: 'Inter', Helvetica, Arial, sans-serif; background-color: #f8f9fa; padding: 20px; color: #111827; line-height: 1.6;">
-          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-            <h1 style="font-size: 20px; font-weight: 700; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; margin-bottom: 20px;">
-              ${payload.titleBlock}
-            </h1>
-            <p style="font-size: 14px; font-weight: 500; color: #4b5563; margin-bottom: 30px;">
-              ${payload.titularDelDia}
-            </p>
-            <!-- ... existing fields ... -->
-            <div style="font-size: 14px;">${JSON.stringify(payload, null, 2)}</div>
+        <div style="padding: 32px; background-color: white;">
+          <h2 style="color: #1B4B8A; margin-top: 0; font-size: 18px;">Executive Summary</h2>
+          <p style="color: #4b5563; line-height: 1.6; font-size: 15px;">
+            The latest market intelligence and macroeconomic analysis for the Venezuela-Trinidad energy corridor has been synthesized.
+          </p>
+          <div style="margin: 24px 0; padding: 20px; background-color: #f9fafb; border-radius: 8px; border-left: 4px solid #1B4B8A;">
+            <p style="margin: 0; font-weight: 600; color: #1f2937;">📎 Full Report Attached</p>
+            <p style="margin: 4px 0 0 0; font-size: 13px; color: #6b7280;">Filename: ${fileName}</p>
           </div>
+          <p style="font-size: 13px; color: #9ca3af; margin-bottom: 0;">
+            Grounded Intelligence Delivery via Gemini 2.5 Flash.
+          </p>
         </div>
-      `;
-    }
+      </div>
+    `;
 
     await transporter.sendMail({
       from: auth.senderEmail,
       to: config.recipientEmail,
-      subject: subject,
-      html: htmlBody,
+      subject: `AVPG Resumen de Prensa - 15 de mayo de 2026`,
+      html: executiveSummary,
+      attachments: [
+        {
+          filename: fileName,
+          content: pdfBuffer,
+          contentType: 'application/pdf'
+        }
+      ]
     });
 
     return true;
