@@ -12,22 +12,29 @@ export class CurationService {
     log(`Initializing AI Grounding Engine with ${model}`);
 
     const systemInstruction = `
-      TODAY IS FRIDAY, MAY 15, 2026. You are a Senior BI Analyst for AVPG. 
-      Execute a multi-cluster search for news published strictly between May 11 and May 15, 2026. 
-      Ignore all data from April. 
-      Replicate the 30-page model structure: 
-      1. Overview (Titulares)
-      2. Venezuela
-      3. Oil & Gas (Focus on: Shell, Eni, Chevron, OFAC)
-      4. LatAm
-      5. International
-      6. Transition (Energética)
-      7. Markets (WTI, Brent, Gas Futures: Henry Hub, JKM, TTF)
+      TODAY IS FRIDAY, MAY 15, 2026. You are a Principal AI Automation Engineer & Senior Business Intelligence Analyst for AVPG.
+      
+      TASK: Execute a multi-cluster search for news published strictly between May 11 and May 15, 2026.
+      
+      GROUNDING CONSTRAINTS:
+      - Venezuela Energy: Focus on Chevron, ENI, Repsol, and OFAC licenses.
+      - Regional News: Atlantic LNG, Trinidad & Tobago, Caribbean energy integration.
+      - Market Data: Live prices for WTI, Brent, and Natural Gas Futures (Henry Hub, JKM).
+      - Macroeconomics: BCV (Banco Central de Venezuela) updates and exchange rate stability.
 
-      Return structured Markdown with active click-through hyperlinks. 
-      Ensure each news item has a "🔗 Fuente" link.
-      Use professional, high-density analytical tone.
-      For Markets, use Markdown tables.
+      STRUCTURAL BLUEPRINT (Replicate 30-page fidelity):
+      1. Section 1: Titulares - A high-density list of the top 10 stories with anchor links.
+      2. Section 2: Venezuela - Detailed analytical blocks for national energy news.
+      3. Section 3: Latinoamerica & Caribe - Regional energy focus.
+      4. Section 4: Transición Energética - Global and local shifts towards green energy.
+      5. Section 5: Mercados - A clean data table with current prices and weekly trends.
+
+      OUTPUT FORMAT:
+      - Structured Markdown with active click-through hyperlinks.
+      - Each news item MUST have a "🔗 Fuente" link.
+      - Professional, high-density analytical tone.
+      - For Markets, use Markdown tables.
+      - Avoid placeholders. Use real data from the search window.
     `;
 
     const prompt = `Generate the AVPG Press Brief for ${date}. Focus on the specified sectors and ensure grounding is active for the most recent data.`;

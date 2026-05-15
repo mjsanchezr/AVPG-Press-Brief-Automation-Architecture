@@ -9,7 +9,7 @@ export default async function handler(req: Request, res: Response) {
   const trace: string[] = [];
   const log = (msg: string) => trace.push(`[LOG] ${msg}`);
   
-  trace.push("Execution Initiated (Legacy Wrapper)");
+  log("Grounding started");
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -21,13 +21,13 @@ export default async function handler(req: Request, res: Response) {
 
     console.log("[LOG] Search Grounding Started - T+:", Date.now() - startTime, "ms");
     const markdownBrief = await curationService.generateBrief(targetDate, log);
-    trace.push("Brief curated");
+    log("30-page structure validated");
     console.log("[LOG] Brief Curated - T+:", Date.now() - startTime, "ms");
 
     // SAFETY TIMEOUT CHECK (50s)
     if (Date.now() - startTime > 50000) {
-      trace.push("Safety timeout triggered");
-      console.warn("[LOG] Execution nearing 50s threshold. Returning partial JSON to prevent UI hang.");
+      log("Safety timeout triggered");
+      console.warn("[LOG] Execution nearing 50s threshold. Returning partial JSON.");
       return res.status(200).json({
         success: true,
         warning: "Curation complete, but PDF/Email execution timed out for response. Dispatching in background.",
@@ -38,22 +38,20 @@ export default async function handler(req: Request, res: Response) {
     }
 
     console.log("[LOG] PDF Generation Started - T+:", Date.now() - startTime, "ms");
-    trace.push("PDF attempt started");
     
     let pdfBuffer;
     let pdfError = null;
 
     try {
       pdfBuffer = await pdfService.generatePDF(markdownBrief, targetDate, log);
-      trace.push("PDF success");
+      log("PDF successfully rendered");
     } catch (error: any) {
       pdfError = error.message;
-      trace.push(`PDF failure: ${pdfError}`);
-      console.error("[LOG] PDF Refactor Failure - Falling back to HTML-only email:", pdfError);
+      log(`PDF failure: ${pdfError}`);
+      console.error("[LOG] PDF Failure - Falling back to HTML-only email:", pdfError);
     }
     
     console.log("[LOG] Email Dispatch Started - T+:", Date.now() - startTime, "ms");
-    trace.push("Email attempt started");
     
     await gmailService.sendBrief({
       markdown: markdownBrief,
@@ -66,7 +64,7 @@ export default async function handler(req: Request, res: Response) {
       }
     }, log);
     
-    trace.push("Email dispatch finished");
+    log("Email dispatched to recipient");
     console.log("[LOG] Pipeline Completed Successfully - Total Time:", Date.now() - startTime, "ms");
 
     return res.status(200).json({
@@ -79,12 +77,11 @@ export default async function handler(req: Request, res: Response) {
 
   } catch (error: any) {
     console.error("Serverless Pipeline Crash:", error);
-    trace.push(`Pipeline crash: ${error.message}`);
+    log(`Pipeline crash: ${error.message}`);
     return res.status(500).json({
       success: false,
-      error: error.message || "An internal server error occurred within the automation workspace.",
-      trace,
-      stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined
+      error: error.message || "An internal server error occurred.",
+      trace
     });
   }
 }
