@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "outputDirectory": "apps/dashboard/dist",
   "functions": {
     "api/execute-brief.ts": {
       "maxDuration": 60,
@@ -7,13 +8,7 @@
     }
   },
   "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/apps/dashboard/$1"
-    }
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

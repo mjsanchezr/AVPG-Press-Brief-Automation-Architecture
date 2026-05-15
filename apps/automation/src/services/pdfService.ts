@@ -142,9 +142,11 @@ export async function generateBriefPDF(markdown: string): Promise<Buffer | Reada
     try {
         console.log("[PDF] Launching browserless chromium instance...");
         browser = await puppeteer.launch({
-            args: [...chromium.args, '--disable-dev-shm-usage', '--no-sandbox'],
+            args: chromium.args,
+            defaultViewport: chromium.defaultViewport,
             executablePath: await chromium.executablePath(),
-            headless: true,
+            headless: chromium.headless,
+            ignoreHTTPSErrors: true,
         });
 
         const page = await browser.newPage();
