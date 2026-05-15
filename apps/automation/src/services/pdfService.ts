@@ -138,6 +138,14 @@ export async function generateBriefPDF(markdown: string): Promise<Buffer | Reada
     </html>
     `;
 
+    const htmlSizeBytes = Buffer.byteLength(htmlContent, 'utf8');
+    console.log(`[PDF] HTML size: ${(htmlSizeBytes / 1024).toFixed(2)} KB`);
+
+    // Memory Guardrail: HTML shouldn't exceed 10MB to stay well within 1024MB Vercel limit
+    if (htmlSizeBytes > 10 * 1024 * 1024) {
+        throw new Error(`HTML content too large for rendering engine (${(htmlSizeBytes / 1024 / 1024).toFixed(2)}MB)`);
+    }
+
     let browser;
     try {
         console.log("[PDF] Launching browserless chromium instance...");
@@ -150,10 +158,19 @@ export async function generateBriefPDF(markdown: string): Promise<Buffer | Reada
         });
 
         const page = await browser.newPage();
-        await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
         
-        console.log("[PDF] Rendering high-fidelity PDF buffer...");
-        const pdf = await page.pdf({
+        // Set a global timeout for page operations
+        page.setDefaultTimeout(20000);
+
+        await page.setContent(htmlContent, { 
+            waitUntil: 'domcontentloaded',
+            timeout: 20000 
+        });
+        
+        console.log("[PDF] Rendering high-fidelity PDF buffer (20s limit)...");
+        
+        // Wrap page.pdf in a timeout promise since it doesn't have a native timeout option
+        const pdfPromise = page.pdf({
             format: 'A4',
             margin: {
                 top: '20mm',
@@ -164,6 +181,12 @@ export async function generateBriefPDF(markdown: string): Promise<Buffer | Reada
             printBackground: true
         });
 
+        const timeoutPromise = new Promise<never>((_, reject) => 
+            setTimeout(() => reject(new Error('PDF generation timed out after 20s')), 20000)
+        );
+
+        const pdf = await Promise.race([pdfPromise, timeoutPromise]) as Uint8Array;
+
         const buffer = Buffer.from(pdf);
         
         // Vercel Payload Limit Guardrail (4.5MB)
@@ -173,11 +196,12 @@ export async function generateBriefPDF(markdown: string): Promise<Buffer | Reada
         }
 
         return buffer;
-    } catch (error) {
-        console.error("[PDF] Service Error:", error);
+    } catch (error: any) {
+        console.error("[PDF] Service Error:", error.message);
         throw error;
     } finally {
         if (browser) {
+            console.log("[PDF] Closing browser instance...");
             await browser.close();
         }
     }

@@ -2,6 +2,7 @@ import nodemailer from 'nodemailer';
 import { Readable } from 'stream';
 import { BriefPayload, SmtpCredentials, DistributionConfig } from '../../../../shared/types';
 import { generateBriefPDF } from './pdfService';
+import { marked } from 'marked';
 
 /**
  * Enhanced Gmail Service
@@ -24,8 +25,21 @@ export async function sendBriefEmailDynamically(
 
     // Generate or use the provided PDF buffer
     const markdown = typeof payload === 'string' ? payload : JSON.stringify(payload);
-    const finalPdfBuffer = pdfBuffer || await generateBriefPDF(markdown);
+    let finalPdfBuffer = pdfBuffer;
+    
+    // Only attempt PDF generation if not provided AND we haven't explicitly opted out (via null)
+    if (finalPdfBuffer === undefined) {
+      try {
+        finalPdfBuffer = await generateBriefPDF(markdown);
+      } catch (e) {
+        console.warn("[GMAIL] PDF generation failed, proceeding with HTML-only delivery.");
+      }
+    }
+
     const fileName = `AVPG_Resumen_Prensa_2026_05_15.pdf`;
+
+    // Convert markdown to HTML for the email body to ensure "high-density" delivery
+    const briefHtml = await marked(markdown);
 
     const executiveSummary = `
       <div style="font-family: 'Helvetica', Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
@@ -38,29 +52,47 @@ export async function sendBriefEmailDynamically(
           <p style="color: #4b5563; line-height: 1.6; font-size: 15px;">
             The latest market intelligence and macroeconomic analysis for the Venezuela-Trinidad energy corridor has been synthesized.
           </p>
+          
+          ${finalPdfBuffer ? `
           <div style="margin: 24px 0; padding: 20px; background-color: #f9fafb; border-radius: 8px; border-left: 4px solid #1B4B8A;">
             <p style="margin: 0; font-weight: 600; color: #1f2937;">📎 Full Report Attached</p>
             <p style="margin: 4px 0 0 0; font-size: 13px; color: #6b7280;">Filename: ${fileName}</p>
           </div>
-          <p style="font-size: 13px; color: #9ca3af; margin-bottom: 0;">
+          ` : `
+          <div style="margin: 24px 0; padding: 20px; background-color: #fff7ed; border-radius: 8px; border-left: 4px solid #f97316;">
+            <p style="margin: 0; font-weight: 600; color: #9a3412;">⚠️ PDF Generation Failed</p>
+            <p style="margin: 4px 0 0 0; font-size: 13px; color: #c2410c;">The full report is included below in high-density HTML format.</p>
+          </div>
+          `}
+
+          <hr style="border: 0; border-top: 1px solid #eee; margin: 32px 0;" />
+          
+          <div style="color: #374151; line-height: 1.7; font-size: 14px;">
+            ${briefHtml}
+          </div>
+
+          <p style="font-size: 13px; color: #9ca3af; margin-top: 32px; margin-bottom: 0;">
             Grounded Intelligence Delivery via Gemini 2.5 Flash.
           </p>
         </div>
       </div>
     `;
 
+    const attachments = [];
+    if (finalPdfBuffer) {
+      attachments.push({
+        filename: fileName,
+        content: finalPdfBuffer as any,
+        contentType: 'application/pdf'
+      });
+    }
+
     await transporter.sendMail({
       from: auth.senderEmail,
       to: config.recipientEmail,
-      subject: `AVPG Resumen de Prensa - 15 de mayo de 2026`,
+      subject: `AVPG Resumen de Prensa - 15 de mayo de 2026 ${!finalPdfBuffer ? '(HTML Edition)' : ''}`,
       html: executiveSummary,
-      attachments: [
-        {
-          filename: fileName,
-          content: finalPdfBuffer,
-          contentType: 'application/pdf'
-        }
-      ]
+      attachments
     });
 
     return true;

@@ -16,6 +16,7 @@ Legal and Asset Updates: Citgo asset milestones remain critical following recent
 export default function App() {
   const [isRunning, setIsRunning] = useState(false);
   const [data, setData] = useState<BriefPayload | string | null>(null);
+  const [trace, setTrace] = useState<string[]>([]);
   
   // Config state
   const [senderEmail, setSenderEmail] = useState('');
@@ -48,7 +49,7 @@ export default function App() {
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 5000);
+    setTimeout(() => setToast(null), 8000); // Increased duration for deep audits
   };
 
   const validateEmail = (email: string) => {
@@ -68,6 +69,7 @@ export default function App() {
 
     setIsRunning(true);
     setData(null);
+    setTrace(["Initializing trace..."]);
 
     const payload: ExecutionPayload = {
       credentials: {
@@ -88,24 +90,21 @@ export default function App() {
         body: JSON.stringify(payload)
       });
 
+      const result = await response.json().catch(() => ({ error: 'Critical failure: Non-JSON response' }));
+      
+      if (result.trace) setTrace(result.trace);
+
       if (!response.ok) {
-        // Safely extract the plain text error if the server didn't emit valid JSON
-        const errorText = await response.text();
-        let parsedError = errorText;
-        try {
-          const jsonErr = JSON.parse(errorText);
-          parsedError = jsonErr.error || errorText;
-        } catch {
-          // Response was not JSON format
-        }
-        throw new Error(parsedError);
+        throw new Error(result.error || `Server Error ${response.status}: ${response.statusText}`);
       }
 
-      const result = await response.json();
-      
       if (result.success) {
         setData(result.data);
-        showToast('Intelligence Loop Executed Successfully.', 'success');
+        if (result.pdfStatus && result.pdfStatus.includes('Failed')) {
+          showToast(`Loop complete: ${result.pdfStatus}. Sent HTML version.`, 'error');
+        } else {
+          showToast('Intelligence Loop Executed Successfully.', 'success');
+        }
       } else {
         throw new Error(result.error || 'Unknown execution error');
       }
@@ -208,6 +207,26 @@ export default function App() {
                     placeholder="admin@example.com"
                   />
                 </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-[10px] font-bold text-cyan-500 uppercase tracking-widest border-b border-[#1a1a1a] pb-2">Internal Log Exposure (Telemetry)</h3>
+              <div className="bg-[#050505] border border-[#1a1a1a] rounded-sm p-3 min-h-[120px] max-h-[200px] overflow-y-auto custom-scrollbar font-mono">
+                {trace.length === 0 ? (
+                  <div className="text-[9px] text-[#333] italic">No active trace data available.</div>
+                ) : (
+                  <ul className="space-y-1">
+                    {trace.map((marker, idx) => (
+                      <li key={idx} className="text-[9px] flex gap-2">
+                        <span className="text-cyan-900 font-bold">[{idx + 1}]</span>
+                        <span className={marker.includes('failure') || marker.includes('crash') ? 'text-red-500' : 'text-gray-500'}>
+                          {marker}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
 
