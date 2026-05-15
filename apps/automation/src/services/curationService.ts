@@ -1,65 +1,69 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export class CurationService {
-  private ai: GoogleGenAI;
+  private ai: GoogleGenerativeAI;
 
   constructor() {
-    this.ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY || '' });
+    // Default instance using env var if present
+    this.ai = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
   }
 
   async generateBrief(date: string, log: (msg: string) => void, geminiApiKey?: string): Promise<string> {
-    const aiClient = geminiApiKey ? new GoogleGenAI({ apiKey: geminiApiKey }) : this.ai;
-    const models = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+    const genAI = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : this.ai;
     
-    const systemInstruction = `
-      TODAY IS FRIDAY, MAY 15, 2026. You are a Principal AI Automation Engineer & Senior Energy Analyst for AVPG.
-      TASK: Execute a multi-cluster search for news published strictly between May 11 and May 15, 2026.
-      ... (rest of the instruction)
-    `;
-
-    for (const model of models) {
+    // We try gemini-1.5-flash FIRST because it's the most stable for free-tier keys
+    // We fall back to gemini-1.5-flash-8b if needed
+    const models = ['gemini-1.5-flash', 'gemini-1.5-flash-8b'];
+    
+    for (const modelName of models) {
       try {
-        log(`Attempting generation with ${model} (Search Grounding enabled)...`);
-        const result = await aiClient.models.generateContent({
-          model: model,
-          systemInstruction: this.getSystemInstruction(),
-          contents: [{ role: 'user', parts: [{ text: `Generate the AVPG Press Brief for ${date}.` }] }],
-          tools: [{ googleSearch: {} }]
-        } as any);
+        log(`Attempting generation with ${modelName} (Search Grounding enabled)...`);
+        
+        // Note: Grounding in @google/generative-ai uses dynamicRetrieval
+        const model = genAI.getGenerativeModel({ 
+          model: modelName,
+          systemInstruction: this.getSystemInstruction()
+        });
 
-        const markdown = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const result = await model.generateContent({
+          contents: [{ role: 'user', parts: [{ text: `Generate the AVPG Press Brief for ${date}.` }] }],
+          tools: [
+            {
+              // @ts-ignore - Google Search is sometimes not in the types but works in runtime for supported projects
+              googleSearchRetrieval: {}
+            }
+          ] as any
+        });
+
+        const markdown = result.response.text();
         if (markdown) {
-          log(`Success: Intelligence synthesized via ${model}.`);
+          log(`Success: Intelligence synthesized via ${modelName}.`);
           return markdown;
         }
       } catch (error: any) {
-        const isQuotaError = error.message?.includes('429') || error.message?.includes('quota');
-        const isPermissionError = error.message?.includes('403');
-
-        if (isQuotaError) {
-          log(`Quota exceeded for ${model}. Trying next available model...`);
-          continue; 
-        }
-
-        log(`Search Grounding failed for ${model}: ${error.message}. Retrying without grounding...`);
+        log(`Attempt with ${modelName} failed: ${error.message}`);
+        
+        // If it's a quota error or tool error, try without tools
+        log(`Retrying ${modelName} WITHOUT search grounding...`);
         try {
-          const fallbackResult = await aiClient.models.generateContent({
-            model: model,
-            systemInstruction: this.getSystemInstruction(),
-            contents: [{ role: 'user', parts: [{ text: `Generate the AVPG Press Brief for ${date}.` }] }]
-          } as any);
-          const fallbackMarkdown = fallbackResult.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          if (fallbackMarkdown) {
-            log(`Success: Fallback synthesis complete via ${model} (No grounding).`);
-            return fallbackMarkdown;
+          const simpleModel = genAI.getGenerativeModel({ 
+            model: modelName,
+            systemInstruction: this.getSystemInstruction()
+          });
+          const result = await simpleModel.generateContent(`Generate the AVPG Press Brief for ${date}.`);
+          const markdown = result.response.text();
+          if (markdown) {
+            log(`Success: Fallback synthesis complete via ${modelName} (No grounding).`);
+            return markdown;
           }
         } catch (fallbackError: any) {
-          log(`Critical failure for ${model}: ${fallbackError.message}`);
-          if (models.indexOf(model) === models.length - 1) throw fallbackError;
+          log(`Fallback for ${modelName} failed: ${fallbackError.message}`);
+          // Continue to next model in loop
         }
       }
     }
-    throw new Error("All AI synthesis attempts failed.");
+
+    throw new Error("All AI synthesis models and methods failed. Please check your API key status.");
   }
 
   private getSystemInstruction(): string {
