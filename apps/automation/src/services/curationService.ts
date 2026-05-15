@@ -11,25 +11,27 @@ export class CurationService {
   async generateBrief(date: string, log: (msg: string) => void, geminiApiKey?: string): Promise<string> {
     const genAI = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : this.ai;
     
-    // We try gemini-1.5-flash FIRST because it's the most stable for free-tier keys
-    // We fall back to gemini-1.5-flash-8b if needed
-    const models = ['gemini-1.5-flash', 'gemini-1.5-flash-8b'];
+    // Attempt to use gemini-1.5-flash which is the most reliable model
+    const models = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-pro'];
     
     for (const modelName of models) {
       try {
         log(`Attempting generation with ${modelName} (Search Grounding enabled)...`);
         
-        // Note: Grounding in @google/generative-ai uses dynamicRetrieval
+        // Ensure we are using the correct model object
         const model = genAI.getGenerativeModel({ 
           model: modelName,
           systemInstruction: this.getSystemInstruction()
         });
 
+        // Use a more standard generation approach
         const result = await model.generateContent({
-          contents: [{ role: 'user', parts: [{ text: `Generate the AVPG Press Brief for ${date}.` }] }],
+          contents: [{ role: 'user', parts: [{ text: `Generate the AVPG Press Brief for ${date}. Focus on energy and macroeconomics for Venezuela and the region.` }] }],
+          // Search grounding is often the source of 403s/404s in some regions/projects
+          // We will try it, but the fallback will skip it
           tools: [
             {
-              // @ts-ignore - Google Search is sometimes not in the types but works in runtime for supported projects
+              // @ts-ignore
               googleSearchRetrieval: {}
             }
           ] as any
@@ -41,24 +43,23 @@ export class CurationService {
           return markdown;
         }
       } catch (error: any) {
-        log(`Attempt with ${modelName} failed: ${error.message}`);
+        log(`Model ${modelName} failed: ${error.message}`);
         
-        // If it's a quota error or tool error, try without tools
+        // Fallback: Try WITHOUT tools (Search Grounding)
         log(`Retrying ${modelName} WITHOUT search grounding...`);
         try {
           const simpleModel = genAI.getGenerativeModel({ 
             model: modelName,
             systemInstruction: this.getSystemInstruction()
           });
-          const result = await simpleModel.generateContent(`Generate the AVPG Press Brief for ${date}.`);
+          const result = await simpleModel.generateContent(`Generate the AVPG Press Brief for ${date}. Focus on energy and macroeconomics for Venezuela and the region.`);
           const markdown = result.response.text();
           if (markdown) {
             log(`Success: Fallback synthesis complete via ${modelName} (No grounding).`);
             return markdown;
           }
         } catch (fallbackError: any) {
-          log(`Fallback for ${modelName} failed: ${fallbackError.message}`);
-          // Continue to next model in loop
+          log(`Simple generation for ${modelName} failed: ${fallbackError.message}`);
         }
       }
     }
